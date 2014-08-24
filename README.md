@@ -17,8 +17,6 @@ And the dependency for ClammyScan:
 libraryDependencies += "net.scalytica" %% "clammyscan" % "0.1"
 ```
 
-
-
 ## Configuration
 
 ClammyScan has some configurable parameters. At the moment the configurable parameters are as follows, and should be located in the application.conf file:
@@ -36,7 +34,46 @@ clammyscan {
 ```
 The properties should be fairly self-explanatory.
 
-## Building and Testing
+## Usage
+
+Currently the body parser *requires* the presence of a *filename* as an argument in the Controller (this will change soon). This means a minimal controller would look something like this:
+
+```scala
+object Application extends Controller with MongoController with ClammyBodyParser {
+  
+  def gfs = GridFS(db)
+  
+  def upload(filename: String) = Action.async(clammyBodyParser(gfs, filename)) { implicit request =>
+    futureMultipartFile.map(file => {
+      logger.info(s"Saved file with name ${file.filename}")
+      Ok
+    }).recover {
+      case e: Throwable => InternalServerError(Json.obj("message" -> e.getMessage))
+    }
+  }
+}
+```
+It is also possible to, optionally, specify any additional metadata to use in GridFS for the saved file. For example, if you have a few request parameters that need to be set, this can be done by passing them to the body parser.
+
+```scala
+object Application extends Controller with MongoController with ClammyBodyParser {
+
+  def gfs = GridFS(db)
+  
+  def upload(param1: String, param2: String, filename: String) = Action.async(clammyBodyParser(gfs, filename, Map[String, String]("param1" -> param1, "param2" -> param2))) { implicit request =>
+    futureMultipartFile.map(file => {
+      logger.info(s"Saved file with name ${file.filename}")
+      Ok
+    }).recover {
+      case e: Throwable => InternalServerError(Json.obj("message" -> e.getMessage))
+    }
+  }
+}
+```
+
+
+
+# Building and Testing
 
 Currently the tests depend on the precense of a clamd instance running on a host called "clamserver" on port 3310. This is a bit...inconvenient. The artifacts can be tested using a local clamd or, as is done here, with a vagrant box running clamd.
 
