@@ -71,12 +71,6 @@ object Application extends Controller with MongoController with ClammyBodyParser
 }
 ```
 
-
-
 # Building and Testing
 
-Currently the tests depend on the precense of a clamd instance running on a host called "clamserver" on port 3310. This is a bit...inconvenient. The artifacts can be tested using a local clamd or, as is done here, with a vagrant box running clamd.
-
-
-
-
+Currently the tests depend on the precense of a clamd instance running on a host called "clamserver" on port 3310. This is a bit...inconvenient...and will be addressed at some point. A good option for running the tests is to have a vagrant box with clamd running on it (with hostname = "clamserver").
