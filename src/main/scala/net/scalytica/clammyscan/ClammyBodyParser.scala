@@ -12,7 +12,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 /**
- * Enables straming upload of files/attachments with custom metadata to GridFS
+ * Enables streaming upload of files/attachments with custom metadata to GridFS
  */
 trait ClammyBodyParser {
   self: Controller =>
@@ -35,8 +35,8 @@ trait ClammyBodyParser {
    * Gets a body parser that will save a file, with specified metadata and filename,
    * sent with multipart/form-data into the given GridFS store.
    */
-  def clammyBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String])
-                                                                            (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = parse.using { request =>
+  def clammyBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String] = Map.empty)
+                                                                        (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = parse.using { request =>
 
     val query = BSONDocument("filename" -> fname) ++ createMetadata(md, isQuery = true)
     val exists = Await.result(gfs.find(query).collect[List](), 1 seconds)
@@ -50,8 +50,16 @@ trait ClammyBodyParser {
     }
   }
 
+  /**
+   * This is where the magic happens...
+   *
+   * First the stream is sent to both the ClamScan Iteratee and the GridFS Iteratee using Enumeratee.zip.
+   * Then, when both Iteratees are done and none of them ended up in an Error state, the response is validated to check
+   * for the presence of a ClamError. If this is found in the result, the file is removed from GridFS and
+   * a JSON Result is returned.
+   */
   private def reactiveMongoClamBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String])
-                                                                                   (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = {
+                                                                                           (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = {
     val metaData = createMetadata(md)
 
     val fileToSave = (fileName: String, contentType: Option[String]) => DefaultFileToSave(fileName, contentType, metadata = metaData)
@@ -68,6 +76,7 @@ trait ClammyBodyParser {
       val data = futureData
       data.files.head.ref._1 match {
         case Left(err) =>
+          // Ooops...there seems to be a problem with the clamd scan result.
           val futureFile = data.files.head.ref._2
           err match {
             case vf: VirusFound =>
@@ -87,13 +96,14 @@ trait ClammyBodyParser {
               Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
           }
         case Right(ok) =>
+          // It's all good...
           Right(futureData)
       }
     })
   }
 
   /**
-   * Convenience function for retreiving the actual FilePart from the request, after scanning and
+   * Convenience function for retrieving the actual FilePart from the request, after scanning and
    * saving has been completed.
    */
   def futureMultipartFile(implicit request: Request[MultipartFormData[(Either[ClamError, FileOk], Future[ReadFile[BSONValue]])]]) = {

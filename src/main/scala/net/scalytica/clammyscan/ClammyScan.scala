@@ -4,8 +4,8 @@ import java.io._
 import java.net.{InetSocketAddress, Socket, SocketException}
 import java.util
 
-import play.api.{Play, Logger}
 import play.api.libs.iteratee._
+import play.api.{Logger, Play}
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -61,6 +61,7 @@ class ClammyScan extends ClamConfig {
   val logger = Logger(this.getClass)
 
   private def connectionError(filename: String) = s"Failed to scan $filename with clamd because of a connection error. Most likely because size limit was exceeded."
+
   private def unknownError(filename: String) = s"An unexpected exception was caught while trying to scan $filename with clamd"
 
   logger.debug(s"Using config values: host=$host, port=$port, timeout=$timeout")
