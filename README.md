@@ -21,7 +21,7 @@ libraryDependencies += "net.scalytica" %% "clammyscan" % "0.1"
 
 ClammyScan has some configurable parameters. At the moment the configurable parameters are as follows, and should be located in the application.conf file:
 
-```
+```hocon
 # ClammyScan configuration
 # ~~~~~
 clammyscan {
