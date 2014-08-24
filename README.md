@@ -1,4 +1,5 @@
 
+[![Build Status](https://travis-ci.org/kpmeen/clammyscan.svg?branch=master)](https://travis-ci.org/kpmeen/clammyscan)
 # ClammyScan
 
 There isn't really all that much to it. The Play Reactive Mongo plugin, which this library depends on, comes with a gridfsBodyParser that allows streaming file uploads directly into MongoDB. ClammyScan implements its own BodyParser, that will both scan the file stream with clamd (over TCP using INSTREAM) and save it to MongoDB. If the file contains a virus or is otherwise infected, it is removed from GridFS...and returns an HTTP NotAcceptable. If the file is OK, the Controller will get the same file part type as from the Play reactive mongo plugin.
@@ -34,6 +35,11 @@ clammyscan {
 }
 ```
 The properties should be fairly self-explanatory.
+
+## Building and Testing
+
+Currently the tests depend on the precense of a clamd instance running on a host called "clamserver" on port 3310. This is a bit...inconvenient. The artifacts can be tested using a local clamd or, as is done here, with a vagrant box running clamd.
+
 
 
 
