@@ -16,12 +16,13 @@ class ClammyScanSpec extends Specification with FutureMatchers {
 
   "Sending a clean file as a stream to ClamAV" should {
     "result in a successful scan without errors" in {
+      val file = "clean.pdf"
       val clamav = new ClammyScan
 
-      val cleanArchiveStream = this.getClass.getResourceAsStream("/clean.pdf")
+      val cleanArchiveStream = this.getClass.getResourceAsStream(s"/$file")
       val fileEnumerator = Enumerator.fromStream(input = cleanArchiveStream)
 
-      val r = fileEnumerator run clamav.clamScan()
+      val r = fileEnumerator run clamav.clamScan(file)
 
       fileEnumerator.onDoneEnumerating {
         cleanArchiveStream.close()
@@ -38,15 +39,16 @@ class ClammyScanSpec extends Specification with FutureMatchers {
 
   //  "Sending file as a stream to ClamAV that is larger than the allowed max stream size" should {
   //    "result in a ClamError" in {
+  //      val file = "some-huge.zip"
   //      val clamav = new ClammyScan
   //
-  //      val cleanArchiveStream = this.getClass.getResourceAsStream("/some-huge.zip")
+  //      val cleanArchiveStream = this.getClass.getResourceAsStream(s"/$file")
   //      val fileEnumerator = Enumerator.fromStream(input = cleanArchiveStream)
   //
   //      fileEnumerator.onDoneEnumerating {
   //        cleanArchiveStream.close()
   //      }
-  //      val r = fileEnumerator run clamav.clamScan()
+  //      val r = fileEnumerator run clamav.clamScan(file)
   //
   //
   //      val result = r.flatMap[Result] {
@@ -65,12 +67,13 @@ class ClammyScanSpec extends Specification with FutureMatchers {
 
   "Sending the EICAR string as a stream to ClamAV" should {
     "result in clamav finding a virus" in {
+      val file = "nofile"
       val clamav = new ClammyScan
 
       val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\0"
       val eicarEnumerator = Enumerator.fromStream(new ByteArrayInputStream(eicarString.getBytes))
 
-      val r = eicarEnumerator run clamav.clamScan()
+      val r = eicarEnumerator run clamav.clamScan(file)
 
       val result = r.flatMap[Result] {
         case Left(err) => Future.successful {
@@ -88,12 +91,13 @@ class ClammyScanSpec extends Specification with FutureMatchers {
 
   "Sending a file stream containing the EICAR string to ClamAV" should {
     "result in a clamav finding a virus" in {
+      val file = "eicarcom2.zip"
       val clamav = new ClammyScan
 
-      val eicarArchiveStream = this.getClass.getResourceAsStream("/eicarcom2.zip")
+      val eicarArchiveStream = this.getClass.getResourceAsStream(s"/$file")
       val infectedEnumerator = Enumerator.fromStream(input = eicarArchiveStream)
 
-      val r = infectedEnumerator run clamav.clamScan()
+      val r = infectedEnumerator run clamav.clamScan(file)
 
       infectedEnumerator.onDoneEnumerating {
         eicarArchiveStream.close()

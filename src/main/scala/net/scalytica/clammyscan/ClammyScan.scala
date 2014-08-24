@@ -4,7 +4,7 @@ import java.io._
 import java.net.{InetSocketAddress, Socket, SocketException}
 import java.util
 
-import play.api.Logger
+import play.api.{Play, Logger}
 import play.api.libs.iteratee._
 
 import scala.concurrent._
@@ -13,19 +13,19 @@ import scala.concurrent.duration._
 
 trait ClamConfig {
   /*
-  * IP address of clamd daemon
+  * IP address of clamd daemon. Defaults to localhost ("clamserver" if no play application is available)
   */
-  val host = "clamserver"
+  val host = Play.maybeApplication.fold("clamserver")(_.configuration.getString("clammyscan.clamd.host").getOrElse("localhost"))
 
   /**
-   * port of clamd daemon
+   * port of clamd daemon. Defaults to 3310
    */
-  val port = 3310
+  val port = Play.maybeApplication.fold(3310)(_.configuration.getInt("clammyscan.clamd.port").getOrElse(3310))
 
   /**
-   * Socket timeout for clam
+   * Socket timeout for clam. Defaults to 5 seconds when running in a play application (otherwise default is 0).
    */
-  val timeout = 0 //5000
+  val timeout = Play.maybeApplication.fold(0)(_.configuration.getInt("clammyscan.clamd.port").getOrElse(5000))
 
   /**
    * Clam socket commands
@@ -60,14 +60,16 @@ class ClammyScan extends ClamConfig {
 
   val logger = Logger(this.getClass)
 
-  private val connectionError = s"Failed to write to clamd because of a connection error. Most likely because size limit was exceeded."
-  private val unknownError = s"An unexpected exception was caught while writing chunk to clamd"
+  private def connectionError(filename: String) = s"Failed to scan $filename with clamd because of a connection error. Most likely because size limit was exceeded."
+  private def unknownError(filename: String) = s"An unexpected exception was caught while trying to scan $filename with clamd"
+
+  logger.debug(s"Using config values: host=$host, port=$port, timeout=$timeout")
 
   /**
    * Iteratee based on the reactive mongo GridFS iteratee... adapted for clammy pleasures
    */
-  def clamScan(chunkSize: Int = 262144)(implicit ec: ExecutionContext): Iteratee[Array[Byte], Either[ClamError, FileOk]] = {
-    logger.info(s"Preparing to scan file with clamd...")
+  def clamScan(filename: String, chunkSize: Int = 262144)(implicit ec: ExecutionContext): Iteratee[Array[Byte], Either[ClamError, FileOk]] = {
+    logger.info(s"Preparing to scan file $filename with clamd...")
 
     val socket = configureSocket()
     val out = new DataOutputStream(socket.getOutputStream)
@@ -121,11 +123,11 @@ class ClammyScan extends ClamConfig {
 
         val res = responseFromClamd()
         if (okResponse.equals(res.trim)) {
-          logger.info("No viruses found")
+          logger.info(s"No viruses found in $filename")
           terminate()
           Right(FileOk())
         } else {
-          logger.warn(s"Virus detected: $res")
+          logger.warn(s"Virus detected in $filename: $res")
           terminate()
           Left(VirusFound(res))
         }
@@ -175,11 +177,11 @@ class ClammyScan extends ClamConfig {
       cc.finish
     }).recover {
       case se: SocketException =>
-        logger.warn(connectionError)
-        Left(ScanError(connectionError))
+        logger.warn(connectionError(filename))
+        Left(ScanError(connectionError(filename)))
       case e: Exception =>
-        logger.error(unknownError, e)
-        Left(ScanError(unknownError))
+        logger.error(unknownError(filename), e)
+        Left(ScanError(unknownError(filename)))
     }
   }
 

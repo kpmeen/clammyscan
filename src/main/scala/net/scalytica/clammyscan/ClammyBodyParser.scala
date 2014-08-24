@@ -60,7 +60,7 @@ trait ClammyBodyParser {
       Multipart.handleFilePart {
         case Multipart.FileInfo(partName, filename, contentType) =>
           val clamav = new ClammyScan
-          val cav = clamav.clamScan()
+          val cav = clamav.clamScan(filename)
           val git = gfs.iteratee(fileToSave(filename, contentType))
           Enumeratee.zip(cav, git)
       }
