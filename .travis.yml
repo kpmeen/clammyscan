@@ -1,11 +1,7 @@
 language: scala
 scala:
-   - 2.10.4
-   - 2.11.2
-
-branches:
-  only:
-    - master
+- 2.10.4
+- 2.11.2
 
 script:
-  - sbt compile
+- sbt compile

@@ -1,5 +1,7 @@
 name := """clammyscan"""
 
+version := "0.2"
+
 organization := "net.scalytica"
 
 licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
@@ -9,6 +11,8 @@ javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 scalaVersion := "2.10.4"
 
 crossScalaVersions := Seq("2.10.4", "2.11.2")
+
+publishArtifact in Test := false
 
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play" % "2.3.3" % "provided" cross CrossVersion.binary,
@@ -24,6 +28,6 @@ resolvers ++= Seq(
   "Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/"
 )
 
-//bintraySettings
+seq(bintraySettings:_*)
 
 //com.typesafe.sbt.SbtGit.versionWithGit

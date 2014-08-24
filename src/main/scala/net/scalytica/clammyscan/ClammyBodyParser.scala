@@ -17,7 +17,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 trait ClammyBodyParser {
   self: Controller =>
 
-  val cbpLogger = Logger("controllers.CustomFileUploader")
+  val cbpLogger = Logger(classOf[ClammyBodyParser].getClass)
 
   /**
    * Takes a Map containing the custom metadata to be stored with the file.
@@ -35,7 +35,7 @@ trait ClammyBodyParser {
    * Gets a body parser that will save a file, with specified metadata and filename,
    * sent with multipart/form-data into the given GridFS store.
    */
-  def attachmentBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String])
+  def clammyBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String])
                                                                             (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = parse.using { request =>
 
     val query = BSONDocument("filename" -> fname) ++ createMetadata(md, isQuery = true)
@@ -50,7 +50,7 @@ trait ClammyBodyParser {
     }
   }
 
-  def reactiveMongoClamBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String])
+  private def reactiveMongoClamBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String])
                                                                                    (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = {
     val metaData = createMetadata(md)
 
