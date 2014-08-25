@@ -3,5 +3,9 @@ scala:
 - 2.10.4
 - 2.11.2
 
+install:
+- sudo apt-get install clamav clamav-daemon clamav-freshclam
+- sudo echo "TCPSocket 3310" >> /etc/clamav/clamd.conf
+
 script:
-- sbt compile
+- sbt compile test
