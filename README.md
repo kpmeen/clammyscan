@@ -14,7 +14,7 @@ resolvers += "JCenter" at "http://jcenter.bintray.com/"
 And the dependency for ClammyScan:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "0.1"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "0.3"
 ```
 
 ## Configuration
@@ -73,4 +73,4 @@ object Application extends Controller with MongoController with ClammyBodyParser
 
 # Building and Testing
 
-Currently the tests depend on the precense of a clamd instance running on a host called "clamserver" on port 3310. This is a bit...inconvenient...and will be addressed at some point. A good option for running the tests is to have a vagrant box with clamd running on it (with hostname = "clamserver").
+Currently the tests depend on the precense of a clamd instance running. For local testing, change the configuration in conf/application.conf to point to a running installation.
