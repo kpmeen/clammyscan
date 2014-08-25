@@ -14,18 +14,20 @@ crossScalaVersions := Seq("2.10.4", "2.11.2")
 
 publishArtifact in Test := false
 
+// javaOptions in Test += "-Dconfig.file=conf/application.conf"
+
+resolvers ++= Seq(
+"Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
+"Sonatype" at "http://oss.sonatype.org/content/groups/public/",
+"Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/",
+"Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/"
+)
+
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play" % "2.3.3" % "provided" cross CrossVersion.binary,
   "com.typesafe.play" %% "play-test" % "2.3.3" % "test" cross CrossVersion.binary,
   "org.reactivemongo" %% "play2-reactivemongo" % "0.10.5.akka23-SNAPSHOT" % "provided" cross CrossVersion.binary,
   "org.specs2" %% "specs2" % "2.3.12" % "test" cross CrossVersion.binary
-)
-
-resolvers ++= Seq(
-  "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
-  "Sonatype" at "http://oss.sonatype.org/content/groups/public/",
-  "Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/",
-  "Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/"
 )
 
 seq(bintraySettings:_*)

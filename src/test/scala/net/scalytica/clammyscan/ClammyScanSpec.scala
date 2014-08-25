@@ -6,7 +6,10 @@ import java.util.concurrent.TimeUnit
 import org.specs2.execute._
 import org.specs2.matcher.FutureMatchers
 import org.specs2.mutable.Specification
+import org.specs2.specification.Scope
 import play.api.libs.iteratee._
+import play.api.test.FakeApplication
+import play.api.test.Helpers._
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -14,106 +17,85 @@ import scala.util.{Left, Right}
 
 class ClammyScanSpec extends Specification with FutureMatchers {
 
-  "Sending a clean file as a stream to ClamAV" should {
-    "result in a successful scan without errors" in {
-      val file = "clean.pdf"
-      val clamav = new ClammyScan
+  "Sending the EICAR string as a stream to ClamAV" should {
+    "result in clamav finding a virus" in new scanFile {
+      running(FakeApplication()) {
+        import play.api.Play.current
 
-      val cleanArchiveStream = this.getClass.getResourceAsStream(s"/$file")
-      val fileEnumerator = Enumerator.fromStream(input = cleanArchiveStream)
+        val clamav = new ClammyScan
 
-      val r = fileEnumerator run clamav.clamScan(file)
+        val eicarEnumerator = Enumerator.fromStream(new ByteArrayInputStream(eicarString.getBytes))
 
-      fileEnumerator.onDoneEnumerating {
-        cleanArchiveStream.close()
+        val r = eicarEnumerator run clamav.clamScan(file)
+
+        val result = r.flatMap[Result] {
+          case Left(err) => Future.successful {
+            err match {
+              case vf: VirusFound => success(s"Found a virus in this one... :-(")
+              case ce: ClamError => failure(s"Got the excepted ClamError result")
+            }
+          }
+          case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
+        }
+
+        Await.result(result, Duration(3, TimeUnit.SECONDS))
       }
-
-      val result = r.flatMap[Result] {
-        case Left(vf) => Future.successful(failure(s"Found a virus in this one... :-("))
-        case Right(fok) => Future.successful(success(s"Successful scan of clean file :-)"))
-      }
-
-      Await.result(result, Duration(2, TimeUnit.MINUTES))
     }
   }
 
-  //  "Sending file as a stream to ClamAV that is larger than the allowed max stream size" should {
-  //    "result in a ClamError" in {
-  //      val file = "some-huge.zip"
-  //      val clamav = new ClammyScan
-  //
-  //      val cleanArchiveStream = this.getClass.getResourceAsStream(s"/$file")
-  //      val fileEnumerator = Enumerator.fromStream(input = cleanArchiveStream)
-  //
-  //      fileEnumerator.onDoneEnumerating {
-  //        cleanArchiveStream.close()
-  //      }
-  //      val r = fileEnumerator run clamav.clamScan(file)
-  //
-  //
-  //      val result = r.flatMap[Result] {
-  //        case Left(err) => Future.successful {
-  //          err match {
-  //            case vf: VirusFound => failure(s"Found a virus in this one... :-(")
-  //            case ce: ClamError => success(s"Got the excepted ClamError result")
-  //          }
-  //        }
-  //        case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
-  //      }
-  //
-  //      Await.result(result, Duration(2, TimeUnit.MINUTES))
-  //    }
-  //  }
+  "Sending a clean file as a stream to ClamAV" should {
+    "result in a successful scan without errors" in new scanFile("clean.pdf") {
+      running(FakeApplication()) {
+        import play.api.Play.current
 
-  "Sending the EICAR string as a stream to ClamAV" should {
-    "result in clamav finding a virus" in {
-      val file = "nofile"
-      val clamav = new ClammyScan
+        val clamav = new ClammyScan
 
-      val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\0"
-      val eicarEnumerator = Enumerator.fromStream(new ByteArrayInputStream(eicarString.getBytes))
+        val r = fileEnumerator run clamav.clamScan(file)
 
-      val r = eicarEnumerator run clamav.clamScan(file)
-
-      val result = r.flatMap[Result] {
-        case Left(err) => Future.successful {
-          err match {
-            case vf: VirusFound => success(s"Found a virus in this one... :-(")
-            case ce: ClamError => failure(s"Got the excepted ClamError result")
-          }
+        val result = r.flatMap[Result] {
+          case Left(vf) => Future.successful(failure(s"Found a virus in this one... :-("))
+          case Right(fok) => Future.successful(success(s"Successful scan of clean file :-)"))
         }
-        case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
-      }
 
-      Await.result(result, Duration(3, TimeUnit.SECONDS))
+        Await.result(result, Duration(2, TimeUnit.MINUTES))
+      }
     }
   }
 
   "Sending a file stream containing the EICAR string to ClamAV" should {
-    "result in a clamav finding a virus" in {
-      val file = "eicarcom2.zip"
-      val clamav = new ClammyScan
+    "result in a clamav finding a virus" in new scanFile("eicarcom2.zip") {
+      running(FakeApplication()) {
+        import play.api.Play.current
 
-      val eicarArchiveStream = this.getClass.getResourceAsStream(s"/$file")
-      val infectedEnumerator = Enumerator.fromStream(input = eicarArchiveStream)
+        val clamav = new ClammyScan
 
-      val r = infectedEnumerator run clamav.clamScan(file)
+        val r = fileEnumerator run clamav.clamScan(file)
 
-      infectedEnumerator.onDoneEnumerating {
-        eicarArchiveStream.close()
-      }
-
-      val result = r.flatMap[Result] {
-        case Left(err) => Future.successful {
-          err match {
-            case vf: VirusFound => success(s"Found a virus in this one... :-(")
-            case ce: ClamError => failure(s"Got the excepted ClamError result")
+        val result = r.flatMap[Result] {
+          case Left(err) => Future.successful {
+            err match {
+              case vf: VirusFound => success(s"Found a virus in this one... :-(")
+              case ce: ClamError => failure(s"Got the excepted ClamError result")
+            }
           }
+          case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
         }
-        case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
-      }
 
-      Await.result(result, Duration(2, TimeUnit.MINUTES))
+        Await.result(result, Duration(2, TimeUnit.MINUTES))
+      }
+    }
+  }
+
+  class scanFile(fname: String = "nofile") extends Scope {
+    val file = fname
+
+    val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\0"
+
+    val fileStream = this.getClass.getResourceAsStream(s"/$file")
+    val fileEnumerator = Enumerator.fromStream(fileStream)
+
+    fileEnumerator.onDoneEnumerating {
+      fileStream.close()
     }
   }
 

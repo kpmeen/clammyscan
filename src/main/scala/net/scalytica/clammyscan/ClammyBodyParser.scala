@@ -1,6 +1,7 @@
 package net.scalytica.clammyscan
 
 import play.api.Logger
+import play.api.Play.current
 import play.api.libs.iteratee._
 import play.api.libs.json.Json
 import play.api.mvc.BodyParsers.parse._
@@ -82,7 +83,7 @@ trait ClammyBodyParser {
             case vf: VirusFound =>
               // We have encountered the dreaded VIRUS...run awaaaaay
               Await.result(futureFile.map(theFile => gfs.remove(theFile.id)), 120 seconds)
-              Left(NotAcceptable(Json.obj("message" -> s"file $fname} contained a virus: ${vf.message}.")))
+              Left(NotAcceptable(Json.obj("message" -> s"file $fname contained a virus: ${vf.message}")))
             case err: ClamError =>
               /*
                 The most common reason for this to happen is if clamd isn't properly configured...however, it may occur

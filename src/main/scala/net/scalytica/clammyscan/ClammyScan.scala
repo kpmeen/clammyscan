@@ -5,27 +5,28 @@ import java.net.{InetSocketAddress, Socket, SocketException}
 import java.util
 
 import play.api.libs.iteratee._
-import play.api.{Logger, Play}
+import play.api.{Application, Logger}
 
 import scala.concurrent._
 import scala.concurrent.duration._
 
 
 trait ClamConfig {
+
   /*
   * IP address of clamd daemon. Defaults to localhost ("clamserver" if no play application is available)
   */
-  val host = Play.maybeApplication.fold("clamserver")(_.configuration.getString("clammyscan.clamd.host").getOrElse("localhost"))
+  def host(implicit app: Application) = app.configuration.getString("clammyscan.clamd.host").getOrElse("localhost")
 
   /**
    * port of clamd daemon. Defaults to 3310
    */
-  val port = Play.maybeApplication.fold(3310)(_.configuration.getInt("clammyscan.clamd.port").getOrElse(3310))
+  def port(implicit app: Application) = app.configuration.getInt("clammyscan.clamd.port").getOrElse(3310)
 
   /**
    * Socket timeout for clam. Defaults to 5 seconds when running in a play application (otherwise default is 0).
    */
-  val timeout = Play.maybeApplication.fold(0)(_.configuration.getInt("clammyscan.clamd.port").getOrElse(5000))
+  def timeout(implicit app: Application) = app.configuration.getInt("clammyscan.clamd.port").getOrElse(5000)
 
   /**
    * Clam socket commands
@@ -56,15 +57,13 @@ case class FileOk()
 /**
  * Allows scanning file streams for viruses using a clamd over TCP.
  */
-class ClammyScan extends ClamConfig {
+class ClammyScan(implicit app: Application) extends ClamConfig {
 
   val logger = Logger(this.getClass)
 
   private def connectionError(filename: String) = s"Failed to scan $filename with clamd because of a connection error. Most likely because size limit was exceeded."
 
   private def unknownError(filename: String) = s"An unexpected exception was caught while trying to scan $filename with clamd"
-
-  logger.debug(s"Using config values: host=$host, port=$port, timeout=$timeout")
 
   /**
    * Iteratee based on the reactive mongo GridFS iteratee... adapted for clammy pleasures
@@ -191,10 +190,17 @@ class ClammyScan extends ClamConfig {
    * @return a new and connected Socket to clamd
    */
   def configureSocket() = {
-    val theSocket = new Socket
-    theSocket.setSoTimeout(timeout)
-    theSocket.connect(new InetSocketAddress(host, port))
-    theSocket
+    logger.info(s"Using config values: host=$host, port=$port, timeout=$timeout")
+    try {
+      val theSocket = new Socket
+      theSocket.setSoTimeout(timeout)
+      theSocket.connect(new InetSocketAddress(host, port))
+      theSocket
+    } catch {
+      case e: Throwable =>
+        logger.error("Could not connect to clamd.", e)
+        throw e
+    }
   }
 
   /**

@@ -9,12 +9,12 @@
         </encoder>
     </appender>
 
-    <logger name="net.scalytica.clammyscan" level="INFO" additivity="false">
+    <logger name="net.scalytica.clammyscan" level="DEBUG" additivity="false">
         <appender-ref ref="STDOUT" />
     </logger>
 
     <!-- Root loggers catch all other events that are not explicitly handled-->
-    <root level="WARN">
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
 
