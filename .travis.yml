@@ -5,7 +5,10 @@ scala:
 
 install:
 - sudo apt-get install clamav clamav-daemon clamav-freshclam
-- sudo echo "TCPSocket 3310" >> /etc/clamav/clamd.conf
+- sudo sed -i "\$aTCPSocket 3310" /etc/clamav/clamd.conf
+- sudo freshclam
+- sudo service clam
+- sudo service clamav-daemon start
 
 script:
 - sbt compile test
