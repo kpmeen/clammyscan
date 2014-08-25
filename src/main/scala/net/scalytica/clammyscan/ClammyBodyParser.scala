@@ -51,6 +51,13 @@ trait ClammyBodyParser {
     }
   }
 
+  /*
+   TODO:
+      1. Add a pure ClamAV body parser that only scans the file...can then be used to expose virus scanning service.
+      2. Define a body parser where you could add your own Iteratee for straming upload to use in combination with ClammyScan.
+  */
+
+
   /**
    * This is where the magic happens...
    *
