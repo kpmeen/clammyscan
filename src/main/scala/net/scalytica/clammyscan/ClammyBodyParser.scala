@@ -36,7 +36,7 @@ trait ClammyBodyParser {
    * Gets a body parser that will save a file, with specified metadata and filename,
    * sent with multipart/form-data into the given GridFS store.
    */
-  def clammyBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String] = Map.empty)
+  def clammyMongoBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String] = Map.empty)
                                                                         (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = parse.using { request =>
 
     val query = BSONDocument("filename" -> fname) ++ createMetadata(md, isQuery = true)
@@ -44,6 +44,7 @@ trait ClammyBodyParser {
 
     if (exists.nonEmpty) {
       // If a file with the above query exists, abort the upload as we don't allow duplicates.
+      // TODO: Make this configurable to suit different use cases.
       cbpLogger.warn(s"File $fname already exists")
       parse.error(Future.successful(Conflict(Json.obj("message" -> s"Filename $fname already exists."))))
     } else {
@@ -51,11 +52,23 @@ trait ClammyBodyParser {
     }
   }
 
-  /*
-   TODO:
-      1. Add a pure ClamAV body parser that only scans the file...can then be used to expose virus scanning service.
-      2. Define a body parser where you could add your own Iteratee for straming upload to use in combination with ClammyScan.
-  */
+  /**
+   * Mostly for convenience this. If you need a service for just scanning a file infections, this is it.
+   */
+  def clammyScanOnlyBodyParser(implicit ec: ExecutionContext): BodyParser[MultipartFormData[Either[ClamError, FileOk]]] = parse.using { request =>
+    multipartFormData {
+      Multipart.handleFilePart {
+        case Multipart.FileInfo(part, fname, ctype) =>
+          val clamav = new ClammyScan
+          clamav.clamScan(fname)
+      }
+    }
+  }
+
+  // TODO: Implement parser that allows for using a custom iteratee for saving the file stream
+  def clammyScanBodyParser(implicit  ec: ExecutionContext) = parse.using { request =>
+    ???
+  }
 
 
   /**
