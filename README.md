@@ -16,7 +16,7 @@ resolvers += "JCenter" at "http://jcenter.bintray.com/"
 And the dependency for ClammyScan:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "0.3"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "0.5"
 ```
 
 ### Configuration
@@ -41,11 +41,11 @@ The properties should be fairly self-explanatory.
 Currently the body parser *requires* the presence of a *filename* as an argument in the Controller (this will change soon). This means a minimal controller would look something like this:
 
 ```scala
-object Application extends Controller with MongoController with ClammyBodyParser {
+object Application extends Controller with MongoController with ClammyBodyParsers {
   
   def gfs = GridFS(db)
   
-  def upload(filename: String) = Action.async(clammyBodyParser(gfs, filename)) { implicit request =>
+  def upload(filename: String) = Action.async(scanAsGridFS(gfs, filename)) { implicit request =>
     futureMultipartFile.map(file => {
       logger.info(s"Saved file with name ${file.filename}")
       Ok
@@ -58,11 +58,11 @@ object Application extends Controller with MongoController with ClammyBodyParser
 It is also possible to, optionally, specify any additional metadata to use in GridFS for the saved file. For example, if you have a few request parameters that need to be set, this can be done by passing them to the body parser.
 
 ```scala
-object Application extends Controller with MongoController with ClammyBodyParser {
+object Application extends Controller with MongoController with ClammyBodyParsers {
 
   def gfs = GridFS(db)
   
-  def upload(param1: String, param2: String, filename: String) = Action.async(clammyBodyParser(gfs, filename, Map[String, String]("param1" -> param1, "param2" -> param2))) { implicit request =>
+  def upload(param1: String, param2: String, filename: String) = Action.async(scanAsGridFS(gfs, filename, Map[String, String]("param1" -> param1, "param2" -> param2))) { implicit request =>
     futureMultipartFile.map(file => {
       logger.info(s"Saved file with name ${file.filename}")
       Ok
@@ -72,6 +72,8 @@ object Application extends Controller with MongoController with ClammyBodyParser
   }
 }
 ```
+
+There are a couple of other body parsers in addition to the scanAsGridFS one shown above. ```scanOnly```is a convenience that just scans your input stream and returns a result without persisting the file in any way. ```scanAsTemp``` has the same sort of behaviour as ```scanAsGridFS```, but as the name implies creates a temp file instead of writing to GridFS.
 
 ### Building and Testing
 
