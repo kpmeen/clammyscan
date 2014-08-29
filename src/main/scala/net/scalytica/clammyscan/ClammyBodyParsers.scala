@@ -1,7 +1,10 @@
 package net.scalytica.clammyscan
 
+import java.io.FileOutputStream
+
 import play.api.Logger
 import play.api.Play.current
+import play.api.libs.Files.TemporaryFile
 import play.api.libs.iteratee._
 import play.api.libs.json.Json
 import play.api.mvc.BodyParsers.parse._
@@ -15,10 +18,10 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 /**
  * Enables streaming upload of files/attachments with custom metadata to GridFS
  */
-trait ClammyBodyParser {
+trait ClammyBodyParsers {
   self: Controller =>
 
-  val cbpLogger = Logger(classOf[ClammyBodyParser].getClass)
+  val cbpLogger = Logger(classOf[ClammyBodyParsers].getClass)
 
   /**
    * Takes a Map containing the custom metadata to be stored with the file.
@@ -36,8 +39,8 @@ trait ClammyBodyParser {
    * Gets a body parser that will save a file, with specified metadata and filename,
    * sent with multipart/form-data into the given GridFS store.
    */
-  def clammyMongoBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String] = Map.empty)
-                                                                        (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = parse.using { request =>
+  def scanAsGridFS[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String] = Map.empty)
+                                                                    (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = parse.using { request =>
 
     val query = BSONDocument("filename" -> fname) ++ createMetadata(md, isQuery = true)
     val exists = Await.result(gfs.find(query).collect[List](), 1 seconds)
@@ -48,14 +51,14 @@ trait ClammyBodyParser {
       cbpLogger.warn(s"File $fname already exists")
       parse.error(Future.successful(Conflict(Json.obj("message" -> s"Filename $fname already exists."))))
     } else {
-      reactiveMongoClamBodyParser(gfs, fname, md)
+      clamMongoBodyParser(gfs, fname, md)
     }
   }
 
   /**
-   * Mostly for convenience this. If you need a service for just scanning a file infections, this is it.
+   * Mostly for convenience this. If you need a service for just scanning a file for infections, this is it.
    */
-  def clammyScanOnlyBodyParser(implicit ec: ExecutionContext): BodyParser[MultipartFormData[Either[ClamError, FileOk]]] = parse.using { request =>
+  def scanOnly(implicit ec: ExecutionContext): BodyParser[MultipartFormData[Either[ClamError, FileOk]]] = parse.using { request =>
     multipartFormData {
       Multipart.handleFilePart {
         case Multipart.FileInfo(part, fname, ctype) =>
@@ -65,9 +68,53 @@ trait ClammyBodyParser {
     }
   }
 
-  // TODO: Implement parser that allows for using a custom iteratee for saving the file stream
-  def clammyScanBodyParser(implicit  ec: ExecutionContext) = parse.using { request =>
-    ???
+  /**
+   * Scans file for virus and buffers to a temporary file. Temp file is removed if file is infected.
+   */
+  def scanAsTempFile(implicit ec: ExecutionContext) = parse.using { request =>
+    multipartFormData {
+      Multipart.handleFilePart {
+        case Multipart.FileInfo(pname, fname, ctype) =>
+          val clamav = new ClammyScan
+          val cav = clamav.clamScan(fname)
+          val tempFile = TemporaryFile("multipartBody", "asTemporaryFile")
+          val tfIte = Iteratee.fold[Array[Byte], FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
+            os.write(data)
+            os
+          }.map { os =>
+            os.close()
+            tempFile
+          }
+          Enumeratee.zip(cav, tfIte)
+      }
+    }.validateM(futureData => Future.successful {
+      val data = futureData
+      data.files.head.ref._1 match {
+        case Left(err) =>
+          // Ooops...there seems to be a problem with the clamd scan result.
+          val temporaryFile = data.files.head.ref._2
+          err match {
+            case vf: VirusFound =>
+              // We have encountered the dreaded VIRUS...run awaaaaay
+              temporaryFile.file.delete()
+              Left(NotAcceptable(Json.obj("message" -> s"file ${temporaryFile.file.getName} contained a virus: ${vf.message}")))
+            case err: ClamError =>
+              /*
+                The most common reason for this to happen is if clamd isn't properly configured...however, it may occur
+                if for some reason clam isn't running. How to differentiate? It's either up or down...we don't know yet.
+                Anyway, shame on you for not configuring clamd to accept streams large enough to handle the max upload
+                size.
+              */
+              // TODO: For now, we are removing the file. Better approach might be to mark the file as "not scanned"
+              // in MongoDB so we could pick up and do a background scan later if necessary.
+              temporaryFile.file.delete()
+              Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
+          }
+        case Right(ok) =>
+          // It's all good...
+          Right(futureData)
+      }
+    })
   }
 
 
@@ -79,8 +126,8 @@ trait ClammyBodyParser {
    * for the presence of a ClamError. If this is found in the result, the file is removed from GridFS and
    * a JSON Result is returned.
    */
-  private def reactiveMongoClamBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String])
-                                                                                           (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = {
+  private def clamMongoBodyParser[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String])
+                                                                                   (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = {
     val metaData = createMetadata(md)
 
     val fileToSave = (fileName: String, contentType: Option[String]) => DefaultFileToSave(fileName, contentType, metadata = metaData)
@@ -105,12 +152,6 @@ trait ClammyBodyParser {
               Await.result(futureFile.map(theFile => gfs.remove(theFile.id)), 120 seconds)
               Left(NotAcceptable(Json.obj("message" -> s"file $fname contained a virus: ${vf.message}")))
             case err: ClamError =>
-              /*
-                The most common reason for this to happen is if clamd isn't properly configured...however, it may occur
-                if for some reason clam isn't running. How to differentiate? It's either up or down...we don't know yet.
-                Anyway, shame on you for not configuring clamd to accept streams large enough to handle the max upload
-                size.
-              */
               // TODO: For now, we are removing the file. Better approach might be to mark the file as "not scanned"
               // in MongoDB so we could pick up and do a background scan later if necessary.
               Await.result(futureFile.map(theFile => gfs.remove(theFile.id)), 120 seconds)
