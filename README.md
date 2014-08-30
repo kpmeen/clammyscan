@@ -28,10 +28,15 @@ ClammyScan has some configurable parameters. At the moment the configurable para
 # ~~~~~
 clammyscan {
   clamd {
-    host="clamserver"
-    port="3310"
-    timeout="0" # Timeout is in milliseconds, where 0 means infinite. (See clamd documentation)
-  }
+    host="localhost" # Defaults to localhost
+    port="3310" # Defaults to 3310
+    timeout="0" # Timeout is in milliseconds, where 0 means infinite. Defaults to 5000. (Please see clamd documentation for details)
+  },
+  gridfs {
+    allowDuplicateFiles="false" # Defaults to true
+  },
+  removeInfected="true", # Defaults to true
+  removeOnError="true" # Defaults to false
 }
 ```
 The properties should be fairly self-explanatory.
@@ -45,8 +50,8 @@ object Application extends Controller with MongoController with ClammyBodyParser
   
   def gfs = GridFS(db)
   
-  def upload(filename: String) = Action.async(scanAsGridFS(gfs, filename)) { implicit request =>
-    futureMultipartFile.map(file => {
+  def upload(filename: String) = Action.async(scanAndParseAsGridFS(gfs, filename)) { implicit request =>
+    futureGridFSFile.map(file => {
       logger.info(s"Saved file with name ${file.filename}")
       Ok
     }).recover {
@@ -62,8 +67,8 @@ object Application extends Controller with MongoController with ClammyBodyParser
 
   def gfs = GridFS(db)
   
-  def upload(param1: String, param2: String, filename: String) = Action.async(scanAsGridFS(gfs, filename, Map[String, String]("param1" -> param1, "param2" -> param2))) { implicit request =>
-    futureMultipartFile.map(file => {
+  def upload(param1: String, param2: String, filename: String) = Action.async(scanAndParseAsGridFS(gfs, filename, Map[String, String]("param1" -> param1, "param2" -> param2))) { implicit request =>
+    futureGridFSFile.map(file => {
       logger.info(s"Saved file with name ${file.filename}")
       Ok
     }).recover {
@@ -73,7 +78,7 @@ object Application extends Controller with MongoController with ClammyBodyParser
 }
 ```
 
-There are a couple of other body parsers in addition to the scanAsGridFS one shown above. ```scanOnly```is a convenience that just scans your input stream and returns a result without persisting the file in any way. ```scanAsTemp``` has the same sort of behaviour as ```scanAsGridFS```, but as the name implies creates a temp file instead of writing to GridFS.
+There are a couple of other body parsers in addition to the scanAsGridFS one shown above. ```scanOnly```is a convenience that just scans your input stream and returns a result without persisting the file in any way. ```scanAndParseAsTempFile``` has the same sort of behaviour as ```scanAndParseAsGridFS```, but as the name implies creates a temp file instead of writing to GridFS.
 
 ### Building and Testing
 
