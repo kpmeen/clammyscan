@@ -1,6 +1,6 @@
 name := """clammyscan"""
 
-version := "0.6-SNAPSHOT"
+version := "0.6"
 
 organization := "net.scalytica"
 
