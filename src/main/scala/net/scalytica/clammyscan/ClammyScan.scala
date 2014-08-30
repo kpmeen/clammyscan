@@ -1,63 +1,18 @@
 package net.scalytica.clammyscan
 
-import java.io._
-import java.net.{InetSocketAddress, Socket, SocketException}
+import java.net.SocketException
 import java.util
 
+import play.api.Logger
 import play.api.libs.iteratee._
-import play.api.{Application, Logger}
 
 import scala.concurrent._
-import scala.concurrent.duration._
 
-
-trait ClamConfig {
-
-  /*
-  * IP address of clamd daemon. Defaults to localhost ("clamserver" if no play application is available)
-  */
-  def host(implicit app: Application) = app.configuration.getString("clammyscan.clamd.host").getOrElse("localhost")
-
-  /**
-   * port of clamd daemon. Defaults to 3310
-   */
-  def port(implicit app: Application) = app.configuration.getInt("clammyscan.clamd.port").getOrElse(3310)
-
-  /**
-   * Socket timeout for clam. Defaults to 5 seconds when running in a play application (otherwise default is 0).
-   */
-  def timeout(implicit app: Application) = app.configuration.getInt("clammyscan.clamd.port").getOrElse(5000)
-
-  /**
-   * Clam socket commands
-   */
-  val instream = "zINSTREAM\0".getBytes
-  val ping = "zPING\0".getBytes
-  val status = "nSTATS\n".getBytes
-  // OK response from clam
-  val okResponse = "stream: OK"
-  val maxSizeExceededResponse = "INSTREAM size limit exceeded. ERROR"
-}
-
-// ---------------------------------------------------------------------------------------------------------
-
-abstract class ClamError {
-  val message: String
-  val isVirus: Boolean
-}
-
-case class VirusFound(message: String, isVirus: Boolean = true) extends ClamError
-
-case class ScanError(message: String, isVirus: Boolean = false) extends ClamError
-
-case class FileOk()
-
-// ---------------------------------------------------------------------------------------------------------
 
 /**
  * Allows scanning file streams for viruses using a clamd over TCP.
  */
-class ClammyScan(implicit app: Application) extends ClamConfig {
+class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
 
   val logger = Logger(this.getClass)
 
@@ -70,13 +25,6 @@ class ClammyScan(implicit app: Application) extends ClamConfig {
    */
   def clamScan(filename: String, chunkSize: Int = 262144)(implicit ec: ExecutionContext): Iteratee[Array[Byte], Either[ClamError, FileOk]] = {
     logger.info(s"Preparing to scan file $filename with clamd...")
-
-    val socket = configureSocket()
-    val out = new DataOutputStream(socket.getOutputStream)
-    val in = socket.getInputStream
-
-    // Send the INSTREAM command to clamd...which indicates it should expect a new input stream
-    out.write(instream)
 
     /**
      * local case class for handling chunks being sent to the Iteratee
@@ -92,18 +40,17 @@ class ClammyScan(implicit app: Application) extends ClamConfig {
        */
       def feed(chunk: Array[Byte]): ClamChunk = {
         val wholeChunk = concat(previous, chunk)
-
         val normalizedChunkNumber = wholeChunk.length / chunkSize
 
         logger.debug("wholeChunk size is " + wholeChunk.length + " => " + normalizedChunkNumber)
 
         val zipped = for (i <- 0 until normalizedChunkNumber) yield util.Arrays.copyOfRange(wholeChunk, i * chunkSize, (i + 1) * chunkSize) -> i
-
         val left = util.Arrays.copyOfRange(wholeChunk, normalizedChunkNumber * chunkSize, wholeChunk.length)
 
         zipped.foreach { ci =>
-          writeChunk(n + ci._2, ci._1)
+          clamSocket.writeChunk(n + ci._2, ci._1)
         }
+
         ClamChunk(
           if (left.isEmpty) Array.empty else left,
           n + normalizedChunkNumber,
@@ -117,53 +64,17 @@ class ClammyScan(implicit app: Application) extends ClamConfig {
       def finish: Either[ClamError, FileOk] = {
         logger.debug("writing last chunk (n=" + n + ")!")
 
-        writeChunk(n, previous)
-        out.writeInt(0)
-        out.flush()
-
-        val res = responseFromClamd()
+        clamSocket.writeChunk(n, previous)
+        val res = clamSocket.clamResponse
         if (okResponse.equals(res.trim)) {
           logger.info(s"No viruses found in $filename")
-          terminate()
+          clamSocket.terminate()
           Right(FileOk())
         } else {
           logger.warn(s"Virus detected in $filename: $res")
-          terminate()
+          clamSocket.terminate()
           Left(VirusFound(res))
         }
-      }
-
-      /**
-       * Try to get the scan response from clamd...
-       */
-      private def responseFromClamd() = {
-        // Consume the response stream from clamav using an enumerator...
-        val virusInformation = Await.result(Enumerator.fromStream(in) run Iteratee.fold[Array[Byte], String]("") {
-          case (s: String, bytes: Array[Byte]) =>
-            s"$s${new String(bytes)}"
-        }, Duration.Inf)
-
-        logger.debug("Response from clamd: " + virusInformation)
-        virusInformation.trim
-      }
-
-      /**
-       * Write a chunk to the clamd socket...
-       */
-      def writeChunk(n: Int, array: Array[Byte]) {
-        logger.debug("writing chunk " + n)
-        out.writeInt(array.length)
-        out.write(array)
-        out.flush()
-      }
-
-      /**
-       * Close the TCP socket connection to clamd
-       */
-      def terminate() {
-        socket.close()
-        out.close()
-        logger.info("TCP socket to clamd is now closed")
       }
 
     }
@@ -186,24 +97,6 @@ class ClammyScan(implicit app: Application) extends ClamConfig {
   }
 
   /**
-   * Configures and initialises a new TCP Socket connection to clamd...
-   * @return a new and connected Socket to clamd
-   */
-  def configureSocket() = {
-    logger.info(s"Using config values: host=$host, port=$port, timeout=$timeout")
-    try {
-      val theSocket = new Socket
-      theSocket.setSoTimeout(timeout)
-      theSocket.connect(new InetSocketAddress(host, port))
-      theSocket
-    } catch {
-      case e: Throwable =>
-        logger.error("Could not connect to clamd.", e)
-        throw e
-    }
-  }
-
-  /**
    * Concatenate two arrays with each other...
    */
   private def concat[T](a1: Array[T], a2: Array[T])(implicit m: Manifest[T]): Array[T] = {
@@ -221,3 +114,14 @@ class ClammyScan(implicit app: Application) extends ClamConfig {
   }
 
 }
+
+abstract class ClamError {
+  val message: String
+  val isVirus: Boolean
+}
+
+case class VirusFound(message: String, isVirus: Boolean = true) extends ClamError
+
+case class ScanError(message: String, isVirus: Boolean = false) extends ClamError
+
+case class FileOk()
