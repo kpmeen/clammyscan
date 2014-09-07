@@ -40,7 +40,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    * Gets a body parser that will save a file, with specified metadata and filename,
    * sent with multipart/form-data into the given GridFS store.
    */
-  def scanAndParseAsGridFS[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, String] = Map.empty)
+  def scanAndParseAsGridFS[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], fname: String, md: Map[String, BSONValue] = Map.empty)
                                                                             (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = parse.using { request =>
     def fileExists: Boolean = {
       val query = BSONDocument("filename" -> fname) ++ createBSONMetadata(md, isQuery = true)
@@ -148,6 +148,9 @@ trait ClammyBodyParsers extends ClammyParserConfig {
   /**
    * Convenience function for retrieving the actual FilePart from the request, after scanning and
    * saving has been completed.
+   *
+   * Since the scan results have been validated as part of the parsing, we can be sure that the it passed through
+   * successfully.
    */
   def futureGridFSFile(implicit request: Request[MultipartFormData[(Either[ClamError, FileOk], Future[ReadFile[BSONValue]])]]) = {
     request.body.files.head.ref._2
@@ -159,7 +162,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    * @param md Map[String, String] containing the custom metadata
    * @return a BSONDocument representing
    */
-  private def createBSONMetadata(md: Map[String, String], isQuery: Boolean = false): BSONDocument = {
+  private def createBSONMetadata(md: Map[String, BSONValue], isQuery: Boolean = false): BSONDocument = {
     var tmp = BSONDocument()
     md.map(m => tmp = tmp ++ BSONDocument((if (isQuery) s"metadata.${m._1}" else m._1) -> m._2))
     tmp
