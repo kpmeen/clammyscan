@@ -78,7 +78,6 @@ class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
       }
 
     }
-
     // start sending chunks to clamav...
     Iteratee.fold(ClamChunk()) { (previous, chunk: Array[Byte]) =>
       logger.debug("processing new enumerated chunk from n=" + previous.n + "...\n")

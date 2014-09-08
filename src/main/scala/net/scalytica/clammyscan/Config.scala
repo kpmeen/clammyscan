@@ -10,6 +10,7 @@ trait ConfigKeys {
   val gridfsDuplicateFilesKey = "clammyscan.gridfs.allowDuplicateFiles"
   val removeInfectedKey = "clammyscan.removeInfected"
   val removeOnErrorKey = "clammyscan.removeOnError"
+  val disabled = "clammyscan.scanDisabled"
 }
 
 trait ClamConfig extends ConfigKeys {
@@ -68,6 +69,12 @@ trait ClammyParserConfig extends ConfigKeys {
   def canRemoveOnError: Boolean = {
     maybeApplication.map(_.configuration.getBoolean(removeOnErrorKey).getOrElse(true)).getOrElse {
       ConfigFactory.load.getBoolean(removeOnErrorKey)
+    }
+  }
+
+  def scanDisabled: Boolean = {
+    maybeApplication.map(_.configuration.getBoolean(disabled).getOrElse(false)).getOrElse {
+      ConfigFactory.load.getBoolean(disabled)
     }
   }
 

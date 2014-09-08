@@ -3,8 +3,8 @@ package net.scalytica.clammyscan
 import java.io.FileOutputStream
 
 import play.api.Logger
-import play.api.Play.current
 import play.api.libs.Files.TemporaryFile
+import play.api.libs.iteratee.Input.Empty
 import play.api.libs.iteratee._
 import play.api.libs.json.Json
 import play.api.mvc.BodyParsers.parse._
@@ -30,8 +30,14 @@ trait ClammyBodyParsers extends ClammyParserConfig {
     multipartFormData {
       Multipart.handleFilePart {
         case Multipart.FileInfo(part, fname, ctype) =>
-          val clamav = new ClammyScan(ClamSocket())
-          clamav.clamScan(fname)
+          if (!scanDisabled) {
+            val clamav = new ClammyScan(ClamSocket())
+            clamav.clamScan(fname)
+          }
+          else {
+            cbpLogger.info(s"Scanning is disabled. $fname will not be scanned")
+            Done(Right(FileOk()), Empty)
+          }
       }
     }
   }
@@ -67,10 +73,15 @@ trait ClammyBodyParsers extends ClammyParserConfig {
       multipartFormData {
         Multipart.handleFilePart {
           case Multipart.FileInfo(partName, filename, contentType) =>
-            val clamav = new ClammyScan(ClamSocket())
-            val cav = clamav.clamScan(filename)
             val git = gfs.iteratee(fileToSave(filename, contentType))
-            Enumeratee.zip(cav, git)
+            if (!scanDisabled) {
+              val clamav = new ClammyScan(ClamSocket())
+              val cav = clamav.clamScan(filename)
+              Enumeratee.zip(cav, git)
+            } else {
+              cbpLogger.info(s"Scanning is disabled. $fname will not be scanned")
+              Enumeratee.zip(Done(Right(FileOk()), Empty), git)
+            }
         }
       }.validateM(futureData => Future.successful {
         val data = futureData
@@ -104,8 +115,6 @@ trait ClammyBodyParsers extends ClammyParserConfig {
     multipartFormData {
       Multipart.handleFilePart {
         case Multipart.FileInfo(pname, fname, ctype) =>
-          val clamav = new ClammyScan(ClamSocket())
-          val cav = clamav.clamScan(fname)
           val tempFile = TemporaryFile("multipartBody", "asTemporaryFile")
           val tfIte = Iteratee.fold[Array[Byte], FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
             os.write(data)
@@ -114,7 +123,14 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             os.close()
             tempFile
           }
-          Enumeratee.zip(cav, tfIte)
+          if (!scanDisabled) {
+            val clamav = new ClammyScan(ClamSocket())
+            val cav = clamav.clamScan(fname)
+            Enumeratee.zip(cav, tfIte)
+          } else {
+            cbpLogger.info(s"Scanning is disabled. $fname will not be scanned")
+            Enumeratee.zip(Done(Right(FileOk()), Empty), tfIte)
+          }
       }
     }.validateM(futureData => Future.successful {
       val data = futureData
