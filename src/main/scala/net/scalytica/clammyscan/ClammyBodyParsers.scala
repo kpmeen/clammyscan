@@ -1,6 +1,7 @@
 package net.scalytica.clammyscan
 
 import java.io.FileOutputStream
+import java.net.ConnectException
 
 import play.api.Logger
 import play.api.libs.Files.TemporaryFile
@@ -31,8 +32,17 @@ trait ClammyBodyParsers extends ClammyParserConfig {
       Multipart.handleFilePart {
         case Multipart.FileInfo(part, fname, ctype) =>
           if (!scanDisabled) {
-            val clamav = new ClammyScan(ClamSocket())
-            clamav.clamScan(fname)
+            val socket = ClamSocket()
+            if (socket.isConnected) {
+              val clamav = new ClammyScan(socket)
+              clamav.clamScan(fname)
+            } else {
+              if (!shouldFailOnError) {
+                Done(Left(ScanError("Could not connect to clamd")), Empty)
+              } else {
+                throw new ConnectException("Could not connect to clamd")
+              }
+            }
           }
           else {
             cbpLogger.info(s"Scanning is disabled. $fname will not be scanned")
@@ -75,9 +85,18 @@ trait ClammyBodyParsers extends ClammyParserConfig {
           case Multipart.FileInfo(partName, filename, contentType) =>
             val git = gfs.iteratee(fileToSave(filename, contentType))
             if (!scanDisabled) {
-              val clamav = new ClammyScan(ClamSocket())
-              val cav = clamav.clamScan(filename)
-              Enumeratee.zip(cav, git)
+              val socket = ClamSocket()
+              if (socket.isConnected) {
+                val clamav = new ClammyScan(socket)
+                val cav = clamav.clamScan(filename)
+                Enumeratee.zip(cav, git)
+              } else {
+                if (!shouldFailOnError) {
+                  Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Empty), git)
+                } else {
+                  throw new ConnectException("Could not connect to clamd")
+                }
+              }
             } else {
               cbpLogger.info(s"Scanning is disabled. $fname will not be scanned")
               Enumeratee.zip(Done(Right(FileOk()), Empty), git)
@@ -97,7 +116,11 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               case err: ClamError =>
                 // in MongoDB so we could pick up and do a background scan later if necessary.
                 if (canRemoveOnError) Await.result(futureFile.map(theFile => gfs.remove(theFile.id)), 120 seconds)
-                Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
+                if (shouldFailOnError) {
+                  Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
+                } else {
+                  Right(futureData)
+                }
             }
           case Right(ok) =>
             // It's all good...
@@ -124,9 +147,18 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             tempFile
           }
           if (!scanDisabled) {
-            val clamav = new ClammyScan(ClamSocket())
-            val cav = clamav.clamScan(fname)
-            Enumeratee.zip(cav, tfIte)
+            val socket = ClamSocket()
+            if (socket.isConnected) {
+              val clamav = new ClammyScan(socket)
+              val cav = clamav.clamScan(fname)
+              Enumeratee.zip(cav, tfIte)
+            } else {
+              if (!shouldFailOnError) {
+                Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Empty), tfIte)
+              } else {
+                throw new ConnectException("failOnError=true - throwing exception: Could not connect to clamd")
+              }
+            }
           } else {
             cbpLogger.info(s"Scanning is disabled. $fname will not be scanned")
             Enumeratee.zip(Done(Right(FileOk()), Empty), tfIte)
@@ -152,7 +184,11 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               */
               // in MongoDB so we could pick up and do a background scan later if necessary.
               if (canRemoveOnError) temporaryFile.file.delete()
-              Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
+              if (shouldFailOnError) {
+                Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
+              } else {
+                Right(futureData)
+              }
           }
         case Right(ok) =>
           // It's all good...

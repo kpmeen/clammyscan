@@ -16,7 +16,7 @@ resolvers += "JCenter" at "http://jcenter.bintray.com/"
 And the dependency for ClammyScan:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "0.6"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "0.8"
 ```
 
 ### Configuration
@@ -25,20 +25,29 @@ ClammyScan has some configurable parameters. At the moment the configurable para
 
 ```hocon
 # ClammyScan configuration
-# ~~~~~
+# ------------------------
 clammyscan {
   clamd {
-    host="localhost" # Defaults to localhost
-    port="3310" # Defaults to 3310
-    timeout="0" # Timeout is in milliseconds, where 0 means infinite. Defaults to 5000. (Please see clamd documentation for details)
-  },
+    #host="localhost"
+    host="clamserver"
+    port="3310"
+    # Timeout is in milliseconds, where 0 means infinite. (See clamd documentation)
+    timeout="0"
+  }
   gridfs {
-    allowDuplicateFiles="false" # Defaults to true
-  },
-  removeInfected="true", # Defaults to true
-  removeOnError="true" # Defaults to false
+    allowDuplicateFiles=false
+  }
+  # Defaults to true
+  removeInfected=true
+  # Defaults to true, but will be treated as false if failOnError=true 
+  removeOnError=true
+  # Defaults to false...if set to true it will also set removeOnError=false
+  failOnError=false
+  # Disables the clamd scan process and just handle the upload. Defaults to false.
+  scanDisabled=false
 }
 ```
+
 The properties should be fairly self-explanatory.
 
 ### Usage
@@ -67,7 +76,7 @@ object Application extends Controller with MongoController with ClammyBodyParser
 
   def gfs = GridFS(db)
   
-  def upload(param1: String, param2: String, filename: String) = Action.async(scanAndParseAsGridFS(gfs, filename, Map[String, String]("param1" -> param1, "param2" -> param2))) { implicit request =>
+  def upload(param1: String, param2: String, filename: String) = Action.async(scanAndParseAsGridFS(gfs, filename, Map[String, BSONValue]("param1" -> BSONString(param1), "param2" -> BSONString(param2)))) { implicit request =>
     futureGridFSFile.map(file => {
       logger.info(s"Saved file with name ${file.filename}")
       Ok

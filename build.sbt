@@ -4,7 +4,7 @@ version := "0.8-SNAPSHOT"
 
 organization := "net.scalytica"
 
-licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
+licenses +=("MIT", url("http://opensource.org/licenses/MIT"))
 
 javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 
@@ -14,13 +14,13 @@ crossScalaVersions := Seq("2.10.4", "2.11.2")
 
 publishArtifact in Test := false
 
-// javaOptions in Test += "-Dconfig.file=conf/application.conf"
+bintraySettings
 
 resolvers ++= Seq(
-"Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
-"Sonatype" at "http://oss.sonatype.org/content/groups/public/",
-"Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/",
-"Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/"
+  "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
+  "Sonatype" at "http://oss.sonatype.org/content/groups/public/",
+  "Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/",
+  "Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/"
 )
 
 libraryDependencies ++= Seq(
@@ -30,6 +30,3 @@ libraryDependencies ++= Seq(
   "org.specs2" %% "specs2" % "2.3.12" % "test" cross CrossVersion.binary
 )
 
-seq(bintraySettings:_*)
-
-//com.typesafe.sbt.SbtGit.versionWithGit

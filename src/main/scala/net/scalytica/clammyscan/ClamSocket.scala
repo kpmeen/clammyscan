@@ -14,69 +14,86 @@ class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
 
   val logger = Logger(this.getClass)
 
-  val socket = connect()
-  val out = new DataOutputStream(socket.getOutputStream)
-  val in = socket.getInputStream
+  val socket: Option[Socket] = connect()
+
+  private lazy val out = socket.map(s => new DataOutputStream(s.getOutputStream)).orNull
+  private lazy val in = socket.map(s => s.getInputStream).orNull
 
   start()
+
+  def isConnected: Boolean = socket.isDefined
 
   /**
    * Configures and initialises a new TCP Socket connection to clamd...
    * @return a new and connected Socket to clamd
    */
-  private def connect(): Socket = {
+  private def connect(): Option[Socket] = {
     logger.info(s"Using config values: host=$host, port=$port, timeout=$timeout")
     try {
       val theSocket = new Socket
       theSocket.setSoTimeout(timeout)
       theSocket.connect(new InetSocketAddress(host, port))
-      theSocket
+      Some(theSocket)
     } catch {
       case e: Throwable =>
-        logger.error("Could not connect to clamd.", e)
-        throw e
+        if (logger.isDebugEnabled) {
+          logger.error("Could not connect to clamd!", e)
+        } else {
+          logger.error("Could not connect to clamd!")
+        }
+        None
     }
   }
 
   private def start() {
-    // Send the INSTREAM command to clamd...which indicates it should expect a new input stream
-    out.write(instream)
+    if (isConnected) {
+      // Send the INSTREAM command to clamd...which indicates it should expect a new input stream
+      out.write(instream)
+    }
   }
 
   /**
    * Write a chunk to the clamd socket...
    */
   def writeChunk(n: Int, array: Array[Byte]) {
-    logger.debug("writing chunk " + n)
-    out.writeInt(array.length)
-    out.write(array)
-    out.flush()
+    if (isConnected) {
+      logger.debug("writing chunk " + n)
+      out.writeInt(array.length)
+      out.write(array)
+      out.flush()
+    }
   }
 
   /**
    * Try to get the scan response from clamd...
    */
   def clamResponse: String = {
-    out.writeInt(0)
-    out.flush()
+    if (isConnected) {
+      out.writeInt(0)
+      out.flush()
 
-    // Consume the response stream from clamav using an enumerator...
-    val virusInformation = Await.result(Enumerator.fromStream(in) run Iteratee.fold[Array[Byte], String]("") {
-      case (s: String, bytes: Array[Byte]) =>
-        s"$s${new String(bytes)}"
-    }, Duration.Inf)
+      // Consume the response stream from clamav using an enumerator...
+      val virusInformation = Await.result(Enumerator.fromStream(in) run Iteratee.fold[Array[Byte], String]("") {
+        case (s: String, bytes: Array[Byte]) =>
+          s"$s${new String(bytes)}"
+      }, Duration.Inf)
 
-    logger.debug("Response from clamd: " + virusInformation)
-    virusInformation.trim
+      logger.debug("Response from clamd: " + virusInformation)
+      virusInformation.trim
+    } else {
+      "Not connected to clamd"
+    }
   }
 
   /**
    * Close the TCP socket connection to clamd
    */
   def terminate() {
-    socket.close()
-    out.close()
-    logger.info("TCP socket to clamd is now closed")
+    if (isConnected) {
+      socket.get.close()
+      out.close()
+      logger.info("TCP socket to clamd is now closed")
+    }
   }
 
 }

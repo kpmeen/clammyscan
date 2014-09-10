@@ -10,6 +10,7 @@ trait ConfigKeys {
   val gridfsDuplicateFilesKey = "clammyscan.gridfs.allowDuplicateFiles"
   val removeInfectedKey = "clammyscan.removeInfected"
   val removeOnErrorKey = "clammyscan.removeOnError"
+  val failOnErrorKey = "clammyscan.failOnError"
   val disabled = "clammyscan.scanDisabled"
 }
 
@@ -64,14 +65,31 @@ trait ClammyParserConfig extends ConfigKeys {
   }
 
   /**
-   * Remove file if an error occurred during scanning... defaults to true
+   * Whether or not to cause the body parser to stop uploading if we cannot connect to clamd... defaults to false
    */
-  def canRemoveOnError: Boolean = {
-    maybeApplication.map(_.configuration.getBoolean(removeOnErrorKey).getOrElse(true)).getOrElse {
-      ConfigFactory.load.getBoolean(removeOnErrorKey)
+  def shouldFailOnError: Boolean = {
+    maybeApplication.map(_.configuration.getBoolean(failOnErrorKey).getOrElse(false)).getOrElse {
+      ConfigFactory.load.getBoolean(failOnErrorKey)
     }
   }
 
+  /**
+   * Remove file if an error occurred during scanning... defaults to true,
+   * but will be overridden and set to false if shouldFailOnError = false
+   */
+  def canRemoveOnError: Boolean = {
+    if (shouldFailOnError) {
+      false
+    } else {
+      maybeApplication.map(_.configuration.getBoolean(removeOnErrorKey).getOrElse(true)).getOrElse {
+        ConfigFactory.load.getBoolean(removeOnErrorKey)
+      }
+    }
+  }
+
+  /**
+   * Disables all virus scanning... defaults to false
+   */
   def scanDisabled: Boolean = {
     maybeApplication.map(_.configuration.getBoolean(disabled).getOrElse(false)).getOrElse {
       ConfigFactory.load.getBoolean(disabled)
