@@ -16,7 +16,7 @@ resolvers += "JCenter" at "http://jcenter.bintray.com/"
 And the dependency for ClammyScan:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "0.8"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "0.9"
 ```
 
 ### Configuration
@@ -28,8 +28,8 @@ ClammyScan has some configurable parameters. At the moment the configurable para
 # ------------------------
 clammyscan {
   clamd {
-    #host="localhost"
-    host="clamserver"
+    host="localhost"
+    #host="clamserver"
     port="3310"
     # Timeout is in milliseconds, where 0 means infinite. (See clamd documentation)
     timeout="0"
@@ -39,12 +39,14 @@ clammyscan {
   }
   # Defaults to true
   removeInfected=true
-  # Defaults to true, but will be treated as false if failOnError=true 
+  # Defaults to true, but will be treated as false if failOnError=true
   removeOnError=true
   # Defaults to false...if set to true it will also set removeOnError=false
   failOnError=false
   # Disables the clamd scan process and just handle the upload. Defaults to false.
   scanDisabled=false
+  # A regex for validating the filename of the file to be uploaded. Will allow anything if not set.
+  validFilenameRegex="""(.[\"\*\\\>\<\?\/\:\|].)|(.[\.]?.[\.]$)|(.*[ ]+$)"""
 }
 ```
 

@@ -1,7 +1,7 @@
 package net.scalytica.clammyscan
 
 import java.io.FileOutputStream
-import java.net.ConnectException
+import java.net.{URLDecoder, ConnectException}
 
 import play.api.Logger
 import play.api.libs.Files.TemporaryFile
@@ -237,7 +237,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    */
   private def fileNameValid(filename: String): Boolean = {
     validFilenameRegex.map(regex =>
-      regex.r.findFirstMatchIn(filename) match {
+      regex.r.findFirstMatchIn(URLDecoder.decode(filename, Codec.utf_8.charset)) match {
         case Some(m) =>
           false
         case _ =>
