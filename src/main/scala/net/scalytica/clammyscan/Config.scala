@@ -12,6 +12,7 @@ trait ConfigKeys {
   val removeOnErrorKey = "clammyscan.removeOnError"
   val failOnErrorKey = "clammyscan.failOnError"
   val disabled = "clammyscan.scanDisabled"
+  val filenameRegex = "clammyscan.validFilenameRegex"
 }
 
 trait ClamConfig extends ConfigKeys {
@@ -93,6 +94,19 @@ trait ClammyParserConfig extends ConfigKeys {
   def scanDisabled: Boolean = {
     maybeApplication.map(_.configuration.getBoolean(disabled).getOrElse(false)).getOrElse {
       ConfigFactory.load.getBoolean(disabled)
+    }
+  }
+
+  /**
+   * Allows defining a regular expression to validate filenames for illegal characters. A good one could e.g. be:
+   * <code>
+   *  (.[\"\*\\\>\<\?\/\:\|].)|(.[\.]?.[\.]$)|(.*[ ]+$)
+   * </code>
+   *
+   */
+  def validFilenameRegex: Option[String] = {
+    maybeApplication.map(_.configuration.getString(filenameRegex)).getOrElse {
+      Option(ConfigFactory.load.getString(filenameRegex))
     }
   }
 
