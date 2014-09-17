@@ -60,9 +60,14 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    * Then, when both Iteratees are done and none of them ended up in an Error state, the response is validated to check
    * for the presence of a ClamError. If this is found in the result, the file is removed from GridFS and
    * a JSON Result is returned.
+   *
+   * S => Structre
+   * R => Reader
+   * W => Writer
+   * Id => extends BSONValue
    */
-  def scanAndParseAsGridFS[Structure, Reader[_], Writer[_], Id <: BSONValue](gfs: GridFS[Structure, Reader, Writer], md: Map[String, BSONValue] = Map.empty)
-                                                                            (implicit readFileReader: Reader[ReadFile[BSONValue]], sWriter: Writer[BSONDocument], ec: ExecutionContext) = parse.using { request =>
+  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], md: Map[String, BSONValue] = Map.empty, fname: Option[String] = None)
+                                                          (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext) = parse.using { request =>
     def fileExists(fname: String): Boolean = {
       val query = BSONDocument("filename" -> fname) ++ createBSONMetadata(md, isQuery = true)
       Await.result(gfs.find(query).collect[List](), 1 seconds).nonEmpty
@@ -75,20 +80,21 @@ trait ClammyBodyParsers extends ClammyParserConfig {
     multipartFormData {
       Multipart.handleFilePart {
         case Multipart.FileInfo(partName, filename, contentType) =>
-          if (fileNameValid(filename)) {
-            if (!allowDuplicateFiles && fileExists(filename)) {
+          val fn = fname.getOrElse(filename)
+          if (fileNameValid(fn)) {
+            if (!allowDuplicateFiles && fileExists(fn)) {
               // If a file with the above query exists, abort the upload as we don't allow duplicates.
-              cbpLogger.warn(s"File $filename already exists")
-              Enumeratee.zip(Done(Left(DuplicateFile(s"File $filename already exists")), Empty), Done(null, Empty))
+              cbpLogger.warn(s"File $fn already exists")
+              Enumeratee.zip(Done(Left(DuplicateFile(s"File $fn already exists")), Empty), Done(null, Empty))
             } else {
               // Prepare the GridFS iteratee...
-              val git = gfs.iteratee(fileToSave(filename, contentType))
+              val git = gfs.iteratee(fileToSave(fn, contentType))
               if (!scanDisabled) {
                 // Prepare the ClamScan iteratee
                 val socket = ClamSocket()
                 if (socket.isConnected) {
                   val clamav = new ClammyScan(socket)
-                  val cav = clamav.clamScan(filename)
+                  val cav = clamav.clamScan(fn)
                   Enumeratee.zip(cav, git)
                 } else {
                   if (!shouldFailOnError) {
@@ -98,13 +104,13 @@ trait ClammyBodyParsers extends ClammyParserConfig {
                   }
                 }
               } else {
-                cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
+                cbpLogger.info(s"Scanning is disabled. $fn will not be scanned")
                 Enumeratee.zip(Done(Right(FileOk()), Empty), git)
               }
             }
           } else {
-            cbpLogger.warn(s"Filename $filename contains illegal characters")
-            Enumeratee.zip(Done(Left(InvalidFilename(s"Filename $filename contains illegal characters")), Empty), Done(null, Empty))
+            cbpLogger.warn(s"Filename $fn contains illegal characters")
+            Enumeratee.zip(Done(Left(InvalidFilename(s"Filename $fn contains illegal characters")), Empty), Done(null, Empty))
           }
       }
     }.validateM(futureData => Future.successful {
@@ -138,7 +144,6 @@ trait ClammyBodyParsers extends ClammyParserConfig {
       }
     })
   }
-
 
   /**
    * Scans file for virus and buffers to a temporary file. Temp file is removed if file is infected.
