@@ -54,14 +54,14 @@ The properties should be fairly self-explanatory.
 
 ### Usage
 
-Currently the body parser *requires* the presence of a *filename* as an argument in the Controller (this will change soon). This means a minimal controller would look something like this:
+A minimal controller could look something like this:
 
 ```scala
 object Application extends Controller with MongoController with ClammyBodyParsers {
   
   def gfs = GridFS(db)
   
-  def upload(filename: String) = Action.async(scanAndParseAsGridFS(gfs, filename)) { implicit request =>
+  def upload(filename: String) = Action.async(scanAndParseAsGridFS(gfs)) { implicit request =>
     futureGridFSFile.map(file => {
       logger.info(s"Saved file with name ${file.filename}")
       Ok
@@ -78,7 +78,7 @@ object Application extends Controller with MongoController with ClammyBodyParser
 
   def gfs = GridFS(db)
   
-  def upload(param1: String, param2: String, filename: String) = Action.async(scanAndParseAsGridFS(gfs, filename, Map[String, BSONValue]("param1" -> BSONString(param1), "param2" -> BSONString(param2)))) { implicit request =>
+  def upload(param1: String, param2: String, filename: String) = Action.async(scanAndParseAsGridFS(gfs, Map[String, BSONValue]("param1" -> BSONString(param1), "param2" -> BSONString(param2)))) { implicit request =>
     futureGridFSFile.map(file => {
       logger.info(s"Saved file with name ${file.filename}")
       Ok
