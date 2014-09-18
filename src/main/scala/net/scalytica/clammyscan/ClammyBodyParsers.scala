@@ -66,7 +66,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    * W => Writer
    * Id => extends BSONValue
    */
-  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], md: Map[String, BSONValue] = Map.empty, fname: Option[String] = None)
+  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], md: Map[String, BSONValue] = Map.empty, fname: Option[String] = None, allowDuplicates: Boolean = allowDuplicateFiles)
                                                           (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext) = parse.using { request =>
     def fileExists(fname: String): Boolean = {
       val query = BSONDocument("filename" -> fname) ++ createBSONMetadata(md, isQuery = true)
@@ -82,7 +82,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
         case Multipart.FileInfo(partName, filename, contentType) =>
           val fn = fname.getOrElse(filename)
           if (fileNameValid(fn)) {
-            if (!allowDuplicateFiles && fileExists(fn)) {
+            if (!allowDuplicates && fileExists(fn)) {
               // If a file with the above query exists, abort the upload as we don't allow duplicates.
               cbpLogger.warn(s"File $fn already exists")
               Enumeratee.zip(Done(Left(DuplicateFile(s"File $fn already exists")), Empty), Done(null, Empty))
