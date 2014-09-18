@@ -70,7 +70,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
                                                           (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext) = parse.using { request =>
     def fileExists(fname: String): Boolean = {
       val query = BSONDocument("filename" -> fname) ++ createBSONMetadata(md, isQuery = true)
-      Await.result(gfs.find(query).collect[List](), 1 seconds).nonEmpty
+      Await.result(gfs.find(query).collect[List](), 10 seconds).nonEmpty
     }
 
     val metaData = createBSONMetadata(md)
