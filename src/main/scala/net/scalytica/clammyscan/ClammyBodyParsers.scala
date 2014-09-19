@@ -1,7 +1,7 @@
 package net.scalytica.clammyscan
 
 import java.io.FileOutputStream
-import java.net.{URLDecoder, ConnectException}
+import java.net.{ConnectException, URLDecoder}
 
 import play.api.Logger
 import play.api.libs.Files.TemporaryFile
@@ -70,7 +70,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
                                                           (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext) = parse.using { request =>
     def fileExists(fname: String): Boolean = {
       val query = BSONDocument("filename" -> fname) ++ createBSONMetadata(md, isQuery = true)
-      Await.result(gfs.find(query).collect[List](), 10 seconds).nonEmpty
+      Await.result(gfs.find(query).headOption.map(_.isDefined), 60 seconds)
     }
 
     val metaData = createBSONMetadata(md)
@@ -125,7 +125,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             case vf: VirusFound =>
               // We have encountered the dreaded VIRUS...run awaaaaay
               if (canRemoveInfectedFiles) {
-                  maybeFutureFile.map(theFile => Await.result(theFile.map(f => gfs.remove(f.id)), 120 seconds))
+                maybeFutureFile.map(theFile => Await.result(theFile.map(f => gfs.remove(f.id)), 120 seconds))
               }
               Left(NotAcceptable(Json.obj("message" -> vf.message)))
             case err: ScanError =>
