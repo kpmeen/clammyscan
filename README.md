@@ -13,7 +13,7 @@ Add the following repository to your build.sbt file:
 ```scala
 resolvers += "JCenter" at "http://jcenter.bintray.com/"
 ```
-And the dependency for ClammyScan:
+And the dependency for the ClammyScan library:
 
 ```scala
 libraryDependencies += "net.scalytica" %% "clammyscan" % "0.13"
