@@ -10,7 +10,6 @@ import play.api.libs.iteratee._
 import play.api.libs.json.Json
 import play.api.mvc.BodyParsers.parse._
 import play.api.mvc._
-import play.modules.reactivemongo.ReactiveMongoPlugin
 import reactivemongo.api.gridfs.{DefaultFileToSave, GridFS, ReadFile}
 import reactivemongo.bson._
 
