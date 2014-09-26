@@ -10,8 +10,9 @@ case class VirusFound(message: String, isVirus: Boolean = true) extends ClamErro
 
 case class ScanError(message: String, isVirus: Boolean = false) extends ClamError
 
-case class DuplicateFile(message: String, isVirus: Boolean = false) extends ClamError
-
-case class InvalidFilename(message: String, isVirus: Boolean = false) extends ClamError
-
 case class FileOk()
+
+// Some general exceptions to allow for failing early and abort the file as soon as possible...
+case class InvalidFilenameException(message: String) extends Exception(message)
+
+case class DuplicateFileException(message: String) extends Exception(message)

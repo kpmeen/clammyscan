@@ -13,8 +13,7 @@ import play.api.mvc._
 import reactivemongo.api.gridfs.{DefaultFileToSave, GridFS, ReadFile}
 import reactivemongo.bson._
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Enables streaming upload of files/attachments with custom metadata to GridFS
@@ -61,31 +60,27 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    * for the presence of a ClamError. If this is found in the result, the file is removed from GridFS and
    * a JSON Result is returned.
    *
-   * S => Structre
+   * S => Structure
    * R => Reader
    * W => Writer
    * Id => extends BSONValue
    */
-  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], md: Map[String, BSONValue] = Map.empty, fname: Option[String] = None, allowDuplicates: Boolean = allowDuplicateFiles)
+  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], md: Map[String, BSONValue] = Map.empty, fname: Option[String] = None, allowDuplicates: Boolean = allowDuplicateFiles, fileExists: (String) => Boolean)
                                                           (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext) = parse.using { request =>
-    def fileExists(fname: String): Boolean = {
-      val query = BSONDocument("filename" -> fname) ++ createBSONMetadata(md, isQuery = true)
-      Await.result(gfs.find(query).headOption.map(_.isDefined), 60 seconds)
-    }
 
     val metaData = createBSONMetadata(md)
 
     val fileToSave = (fileName: String, contentType: Option[String]) => DefaultFileToSave(fileName, contentType, metadata = metaData)
-
     multipartFormData {
       Multipart.handleFilePart {
-        case Multipart.FileInfo(partName, filename, contentType) =>
+        case Multipart.FileInfo(partName, filename, contentType) => // TODO: Maybe override this to get greater control on exceptions?
           val fn = fname.getOrElse(filename)
           if (fileNameValid(fn)) {
             if (!allowDuplicates && fileExists(fn)) {
               // If a file with the above query exists, abort the upload as we don't allow duplicates.
               cbpLogger.warn(s"File $fn already exists")
-              Enumeratee.zip(Done(Left(DuplicateFile(s"File $fn already exists")), Empty), Done(null, Empty))
+              // TODO: This must be improved to avoid causing the exception to be logged by the PlayDefaultUpstreamHandler.
+              throw new DuplicateFileException(s"File $fn already exists")
             } else {
               // Prepare the GridFS iteratee...
               val git = gfs.iteratee(fileToSave(fn, contentType))
@@ -110,27 +105,25 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             }
           } else {
             cbpLogger.warn(s"Filename $fn contains illegal characters")
-            Enumeratee.zip(Done(Left(InvalidFilename(s"Filename $fn contains illegal characters")), Empty), Done(null, Empty))
+            throw new InvalidFilenameException(s"Filename $fn contains illegal characters")
           }
       }
     }.validateM(futureData => Future.successful {
       val data = futureData
-      data.files.head.ref._1 match {
+      data.files.headOption.map(f => f.ref._1 match {
         case Left(err) =>
           // Ooops...there seems to be a problem with the clamd scan result.
           val maybeFutureFile = Option(data.files.head.ref._2)
           err match {
-            case inv: InvalidFilename => Left(BadRequest(Json.obj("message" -> inv.message)))
-            case dupe: DuplicateFile => Left(Conflict(Json.obj("message" -> dupe.message)))
             case vf: VirusFound =>
               // We have encountered the dreaded VIRUS...run awaaaaay
               if (canRemoveInfectedFiles) {
-                maybeFutureFile.map(theFile => Await.result(theFile.map(f => gfs.remove(f.id)), 120 seconds))
+                maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
               }
               Left(NotAcceptable(Json.obj("message" -> vf.message)))
             case err: ScanError =>
               if (canRemoveOnError) {
-                maybeFutureFile.map(theFile => Await.result(theFile.map(f => gfs.remove(f.id)), 120 seconds))
+                maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
               }
               if (shouldFailOnError) {
                 Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
@@ -141,6 +134,10 @@ trait ClammyBodyParsers extends ClammyParserConfig {
         case Right(ok) =>
           // It's all good...
           Right(futureData)
+      }).getOrElse {
+        val errMsg = "Could not find file reference to in files list. This is bad..."
+        cbpLogger.error(errMsg)
+        Left(InternalServerError(Json.obj("message" -> errMsg)))
       }
     })
   }
@@ -180,7 +177,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             }
           } else {
             cbpLogger.info(s"Filename $filename contains illegal characters")
-            Enumeratee.zip(Done(Left(InvalidFilename(s"Filename $filename contains illegal characters")), Empty), Done(null, Empty))
+            throw new InvalidFilenameException(s"Filename $filename contains illegal characters")
           }
       }
     }.validateM(futureData => Future.successful {
@@ -190,7 +187,6 @@ trait ClammyBodyParsers extends ClammyParserConfig {
           // Ooops...there seems to be a problem with the clamd scan result.
           val temporaryFile = Option(data.files.head.ref._2)
           err match {
-            case inv: InvalidFilename => Left(BadRequest(Json.obj("message" -> inv.message)))
             case vf: VirusFound =>
               // We have encountered the dreaded VIRUS...run awaaaaay
               if (canRemoveInfectedFiles) {
@@ -231,7 +227,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    * @param md Map[String, String] containing the custom metadata
    * @return a BSONDocument representing
    */
-  private def createBSONMetadata(md: Map[String, BSONValue], isQuery: Boolean = false): BSONDocument = {
+  def createBSONMetadata(md: Map[String, BSONValue], isQuery: Boolean = false): BSONDocument = {
     var tmp = BSONDocument()
     md.map(m => tmp = tmp ++ BSONDocument((if (isQuery) s"metadata.${m._1}" else m._1) -> m._2))
     tmp
