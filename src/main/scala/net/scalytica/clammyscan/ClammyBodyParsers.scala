@@ -10,6 +10,7 @@ import play.api.libs.iteratee._
 import play.api.libs.json.Json
 import play.api.mvc.BodyParsers.parse._
 import play.api.mvc._
+import play.modules.reactivemongo.ReactiveMongoPlugin
 import reactivemongo.api.gridfs.{DefaultFileToSave, GridFS, ReadFile}
 import reactivemongo.bson._
 
@@ -65,16 +66,16 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    * W => Writer
    * Id => extends BSONValue
    */
-  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], md: Map[String, BSONValue] = Map.empty, fname: Option[String] = None, allowDuplicates: Boolean = allowDuplicateFiles, fileExists: (String) => Boolean)
+  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], fileName: Option[String] = None, metaData: Option[BSONDocument], allowDuplicates: Boolean = allowDuplicateFiles)
+                                                          (fileExists: (String) => Boolean)
                                                           (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext) = parse.using { request =>
 
-    val metaData = createBSONMetadata(md)
+    val fileToSave = (fileName: String, contentType: Option[String]) => metaData.fold(DefaultFileToSave(fileName, contentType))(md => DefaultFileToSave(fileName, contentType, metadata = md))
 
-    val fileToSave = (fileName: String, contentType: Option[String]) => DefaultFileToSave(fileName, contentType, metadata = metaData)
     multipartFormData {
       Multipart.handleFilePart {
-        case Multipart.FileInfo(partName, filename, contentType) => // TODO: Maybe override this to get greater control on exceptions?
-          val fn = fname.getOrElse(filename)
+        case Multipart.FileInfo(partName, fname, contentType) => // TODO: Maybe override this to get greater control on exceptions?
+          val fn = fileName.getOrElse(fname)
           if (fileNameValid(fn)) {
             if (!allowDuplicates && fileExists(fn)) {
               // If a file with the above query exists, abort the upload as we don't allow duplicates.
