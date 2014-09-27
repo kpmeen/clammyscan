@@ -26,9 +26,9 @@ trait ClammyBodyParsers extends ClammyParserConfig {
   /**
    * Mostly for convenience this. If you need a service for just scanning a file for infections, this is it.
    */
-  def scanOnly(implicit ec: ExecutionContext): BodyParser[MultipartFormData[Either[ClamError, FileOk]]] = parse.using { request =>
-    multipartFormData {
-      Multipart.handleFilePart {
+  def scanOnly(implicit ec: ExecutionContext): BodyParser[MultipartFormData[Either[ClamError, FileOk]]] =
+    parse.using { request =>
+      multipartFormData(Multipart.handleFilePart {
         case Multipart.FileInfo(partName, filename, contentType) =>
           if (!scanDisabled) {
             val socket = ClamSocket()
@@ -47,9 +47,8 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
             Done(Right(FileOk()), Empty)
           }
-      }
+      })
     }
-  }
 
   /**
    * Gets a body parser that will save a file, with specified metadata and filename,
@@ -67,12 +66,12 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    */
   def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], fileName: Option[String] = None, metaData: Option[BSONDocument], allowDuplicates: Boolean = allowDuplicateFiles)
                                                           (fileExists: (String) => Boolean)
-                                                          (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext) = parse.using { request =>
+                                                          (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext) =
+    parse.using { request =>
 
-    val fileToSave = (fileName: String, contentType: Option[String]) => metaData.fold(DefaultFileToSave(fileName, contentType))(md => DefaultFileToSave(fileName, contentType, metadata = md))
+      val fileToSave = (fileName: String, contentType: Option[String]) => metaData.fold(DefaultFileToSave(fileName, contentType))(md => DefaultFileToSave(fileName, contentType, metadata = md))
 
-    multipartFormData {
-      Multipart.handleFilePart {
+      multipartFormData(Multipart.handleFilePart {
         case Multipart.FileInfo(partName, fname, contentType) => // TODO: Maybe override this to get greater control on exceptions?
           val fn = fileName.getOrElse(fname)
           if (fileNameValid(fn)) {
@@ -108,79 +107,78 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             throw new InvalidFilenameException(s"Filename $fn contains illegal characters")
           }
       }
-    }.validateM(futureData => Future.successful {
-      val data = futureData
-      data.files.headOption.map(f => f.ref._1 match {
-        case Left(err) =>
-          // Ooops...there seems to be a problem with the clamd scan result.
-          val maybeFutureFile = Option(data.files.head.ref._2)
-          err match {
-            case vf: VirusFound =>
-              // We have encountered the dreaded VIRUS...run awaaaaay
-              if (canRemoveInfectedFiles) {
-                maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
-              }
-              Left(NotAcceptable(Json.obj("message" -> vf.message)))
-            case err: ScanError =>
-              if (canRemoveOnError) {
-                maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
-              }
-              if (shouldFailOnError) {
-                Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
-              } else {
-                Right(futureData)
-              }
-          }
-        case Right(ok) =>
-          // It's all good...
-          Right(futureData)
-      }).getOrElse {
-        val errMsg = "Could not find file reference to in files list. This is bad..."
-        cbpLogger.error(errMsg)
-        Left(InternalServerError(Json.obj("message" -> errMsg)))
-      }
-    })
-  }
+      ).validateM(futureData => Future.successful {
+        val data = futureData
+        data.files.headOption.map(f => f.ref._1 match {
+          case Left(err) =>
+            // Ooops...there seems to be a problem with the clamd scan result.
+            val maybeFutureFile = Option(data.files.head.ref._2)
+            err match {
+              case vf: VirusFound =>
+                // We have encountered the dreaded VIRUS...run awaaaaay
+                if (canRemoveInfectedFiles) {
+                  maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
+                }
+                Left(NotAcceptable(Json.obj("message" -> vf.message)))
+              case err: ScanError =>
+                if (canRemoveOnError) {
+                  maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
+                }
+                if (shouldFailOnError) {
+                  Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
+                } else {
+                  Right(futureData)
+                }
+            }
+          case Right(ok) =>
+            // It's all good...
+            Right(futureData)
+        }).getOrElse {
+          val errMsg = "Could not find file reference to in files list. This is bad..."
+          cbpLogger.error(errMsg)
+          Left(InternalServerError(Json.obj("message" -> errMsg)))
+        }
+      })
+    }
 
   /**
    * Scans file for virus and buffers to a temporary file. Temp file is removed if file is infected.
    */
   def scanAndParseAsTempFile(implicit ec: ExecutionContext) = parse.using { request =>
-    multipartFormData {
-      Multipart.handleFilePart {
-        case Multipart.FileInfo(partName, filename, contentType) =>
-          if (fileNameValid(filename)) {
-            val tempFile = TemporaryFile("multipartBody", "asTemporaryFile")
-            val tfIte = Iteratee.fold[Array[Byte], FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
-              os.write(data)
-              os
-            }.map { os =>
-              os.close()
-              tempFile
-            }
-            if (!scanDisabled) {
-              val socket = ClamSocket()
-              if (socket.isConnected) {
-                val clamav = new ClammyScan(socket)
-                val cav = clamav.clamScan(filename)
-                Enumeratee.zip(cav, tfIte)
-              } else {
-                if (!shouldFailOnError) {
-                  Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Empty), tfIte)
-                } else {
-                  throw new ConnectException("failOnError=true - throwing exception: Could not connect to clamd")
-                }
-              }
+    multipartFormData(Multipart.handleFilePart {
+      case Multipart.FileInfo(partName, filename, contentType) =>
+        if (fileNameValid(filename)) {
+          val tempFile = TemporaryFile("multipartBody", "asTemporaryFile")
+          val tfIte = Iteratee.fold[Array[Byte], FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
+            os.write(data)
+            os
+          }.map { os =>
+            os.close()
+            tempFile
+          }
+          if (!scanDisabled) {
+            val socket = ClamSocket()
+            if (socket.isConnected) {
+              val clamav = new ClammyScan(socket)
+              val cav = clamav.clamScan(filename)
+              Enumeratee.zip(cav, tfIte)
             } else {
-              cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
-              Enumeratee.zip(Done(Right(FileOk()), Empty), tfIte)
+              if (!shouldFailOnError) {
+                Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Empty), tfIte)
+              } else {
+                throw new ConnectException("failOnError=true - throwing exception: Could not connect to clamd")
+              }
             }
           } else {
-            cbpLogger.info(s"Filename $filename contains illegal characters")
-            throw new InvalidFilenameException(s"Filename $filename contains illegal characters")
+            cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
+            Enumeratee.zip(Done(Right(FileOk()), Empty), tfIte)
           }
-      }
-    }.validateM(futureData => Future.successful {
+        } else {
+          cbpLogger.info(s"Filename $filename contains illegal characters")
+          throw new InvalidFilenameException(s"Filename $filename contains illegal characters")
+        }
+    }
+    ).validateM(futureData => Future.successful {
       val data = futureData
       data.files.head.ref._1 match {
         case Left(err) =>
@@ -222,29 +220,15 @@ trait ClammyBodyParsers extends ClammyParserConfig {
   }
 
   /**
-   * Takes a Map containing the custom metadata to be stored with the file.
-   *
-   * @param md Map[String, String] containing the custom metadata
-   * @return a BSONDocument representing
-   */
-  def createBSONMetadata(md: Map[String, BSONValue], isQuery: Boolean = false): BSONDocument = {
-    var tmp = BSONDocument()
-    md.map(m => tmp = tmp ++ BSONDocument((if (isQuery) s"metadata.${m._1}" else m._1) -> m._2))
-    tmp
-  }
-
-  /**
    * Will validate the filename based on the configured regular expression defined in application.conf.
    */
   private def fileNameValid(filename: String): Boolean = {
-    validFilenameRegex.map(regex =>
-      regex.r.findFirstMatchIn(URLDecoder.decode(filename, Codec.utf_8.charset)) match {
-        case Some(m) =>
-          false
-        case _ =>
-          true
-      }
-    ).getOrElse(true)
+    validFilenameRegex.map(regex => regex.r.findFirstMatchIn(URLDecoder.decode(filename, Codec.utf_8.charset)) match {
+      case Some(m) =>
+        false
+      case _ =>
+        true
+    }).getOrElse(true)
   }
 
 }
