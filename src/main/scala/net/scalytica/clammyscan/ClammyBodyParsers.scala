@@ -5,7 +5,6 @@ import java.net.{ConnectException, URLDecoder}
 
 import play.api.Logger
 import play.api.libs.Files.TemporaryFile
-import play.api.libs.iteratee.Input.Empty
 import play.api.libs.iteratee._
 import play.api.libs.json.Json
 import play.api.mvc.BodyParsers.parse._
@@ -37,7 +36,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               clamav.clamScan(filename)
             } else {
               if (!shouldFailOnError) {
-                Done(Left(ScanError("Could not connect to clamd")), Empty)
+                Done(Left(ScanError("Could not connect to clamd")), Input.EOF)
               } else {
                 throw new ConnectException("Could not connect to clamd")
               }
@@ -45,7 +44,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
           }
           else {
             cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
-            Done(Right(FileOk()), Empty)
+            Done(Right(FileOk()), Input.EOF)
           }
       })
     }
@@ -92,14 +91,14 @@ trait ClammyBodyParsers extends ClammyParserConfig {
                   Enumeratee.zip(cav, git)
                 } else {
                   if (!shouldFailOnError) {
-                    Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Empty), git)
+                    Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Input.EOF), git)
                   } else {
                     throw new ConnectException("Could not connect to clamd")
                   }
                 }
               } else {
                 cbpLogger.info(s"Scanning is disabled. $fn will not be scanned")
-                Enumeratee.zip(Done(Right(FileOk()), Empty), git)
+                Enumeratee.zip(Done(Right(FileOk()), Input.EOF), git)
               }
             }
           } else {
@@ -164,14 +163,14 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               Enumeratee.zip(cav, tfIte)
             } else {
               if (!shouldFailOnError) {
-                Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Empty), tfIte)
+                Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Input.EOF), tfIte)
               } else {
                 throw new ConnectException("failOnError=true - throwing exception: Could not connect to clamd")
               }
             }
           } else {
             cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
-            Enumeratee.zip(Done(Right(FileOk()), Empty), tfIte)
+            Enumeratee.zip(Done(Right(FileOk()), Input.EOF), tfIte)
           }
         } else {
           cbpLogger.info(s"Filename $filename contains illegal characters")

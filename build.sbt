@@ -8,6 +8,8 @@ licenses +=("MIT", url("http://opensource.org/licenses/MIT"))
 
 javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 
+scalacOptions ++= Seq("-feature", "-language:higherKinds")
+
 scalaVersion := "2.10.4"
 
 crossScalaVersions := Seq("2.10.4", "2.11.2")

@@ -23,6 +23,7 @@ class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
   /**
    * Iteratee based on the reactive mongo GridFS iteratee... adapted for clammy pleasures
    */
+  // TODO: Specify custom execution context (could maybe just use the play trampoline?)
   def clamScan(filename: String, chunkSize: Int = 262144)(implicit ec: ExecutionContext): Iteratee[Array[Byte], Either[ClamError, FileOk]] = {
     logger.info(s"Preparing to scan file $filename with clamd...")
 
