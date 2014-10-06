@@ -20,7 +20,7 @@ import scala.concurrent.{ExecutionContext, Future}
 trait ClammyBodyParsers extends ClammyParserConfig {
   self: Controller =>
 
-  val cbpLogger = Logger(classOf[ClammyBodyParsers].getClass)
+  val cbpLogger = Logger(classOf[ClammyBodyParsers])
 
   /**
    * Mostly for convenience this. If you need a service for just scanning a file for infections, this is it.
