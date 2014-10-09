@@ -22,10 +22,13 @@ trait ClammyBodyParsers extends ClammyParserConfig {
 
   val cbpLogger = Logger(classOf[ClammyBodyParsers])
 
+  type ClamResponse = Either[ClamError, FileOk]
+  type ClammyGridFSBody = (Future[ClamResponse], Future[ReadFile[BSONValue]])
+
   /**
    * Mostly for convenience this. If you need a service for just scanning a file for infections, this is it.
    */
-  def scanOnly(implicit ec: ExecutionContext): BodyParser[MultipartFormData[Either[ClamError, FileOk]]] =
+  def scanOnly(implicit ec: ExecutionContext): BodyParser[MultipartFormData[Future[ClamResponse]]] =
     parse.using { request =>
       multipartFormData(Multipart.handleFilePart {
         case Multipart.FileInfo(partName, filename, contentType) =>
@@ -36,7 +39,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               clamav.clamScan(filename)
             } else {
               if (!shouldFailOnError) {
-                Done(Left(ScanError("Could not connect to clamd")), Input.EOF)
+                Done(Future.successful(Left(ScanError("Could not connect to clamd"))), Input.EOF)
               } else {
                 throw new ConnectException("Could not connect to clamd")
               }
@@ -44,7 +47,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
           }
           else {
             cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
-            Done(Right(FileOk()), Input.EOF)
+            Done(Future.successful(Right(FileOk())), Input.EOF)
           }
       })
     }
@@ -65,7 +68,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    */
   def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], fileName: Option[String] = None, metaData: Option[BSONDocument], allowDuplicates: Boolean = allowDuplicateFiles)
                                                           (fileExists: (String) => Boolean)
-                                                          (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext) =
+                                                          (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext): BodyParser[MultipartFormData[ClammyGridFSBody]] =
     parse.using { request =>
 
       val fileToSave = (fileName: String, contentType: Option[String]) => metaData.fold(DefaultFileToSave(fileName, contentType))(md => DefaultFileToSave(fileName, contentType, metadata = md))
@@ -91,24 +94,23 @@ trait ClammyBodyParsers extends ClammyParserConfig {
                   Enumeratee.zip(cav, git)
                 } else {
                   if (!shouldFailOnError) {
-                    Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Input.EOF), git)
+                    Enumeratee.zip(Done(Future.successful(Left(ScanError("Could not connect to clamd"))), Input.EOF), git)
                   } else {
                     throw new ConnectException("Could not connect to clamd")
                   }
                 }
               } else {
                 cbpLogger.info(s"Scanning is disabled. $fn will not be scanned")
-                Enumeratee.zip(Done(Right(FileOk()), Input.EOF), git)
+                Enumeratee.zip(Done(Future.successful(Right(FileOk())), Input.EOF), git)
               }
             }
           } else {
             cbpLogger.warn(s"Filename $fn contains illegal characters")
             throw new InvalidFilenameException(s"Filename $fn contains illegal characters")
           }
-      }
-      ).validateM(futureData => Future.successful {
+      }).validateM(futureData => {
         val data = futureData
-        data.files.headOption.map(f => f.ref._1 match {
+        data.files.headOption.map(ef => ef.ref._1.flatMap {
           case Left(err) =>
             // Ooops...there seems to be a problem with the clamd scan result.
             val maybeFutureFile = Option(data.files.head.ref._2)
@@ -118,24 +120,24 @@ trait ClammyBodyParsers extends ClammyParserConfig {
                 if (canRemoveInfectedFiles) {
                   maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
                 }
-                Left(NotAcceptable(Json.obj("message" -> vf.message)))
+                Future.successful(Left(NotAcceptable(Json.obj("message" -> vf.message))))
               case err: ScanError =>
                 if (canRemoveOnError) {
                   maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
                 }
                 if (shouldFailOnError) {
-                  Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
+                  Future.successful(Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit."))))
                 } else {
-                  Right(futureData)
+                  Future.successful(Right(futureData))
                 }
             }
           case Right(ok) =>
             // It's all good...
-            Right(futureData)
+            Future.successful(Right(futureData))
         }).getOrElse {
           val errMsg = "Could not find file reference to in files list. This is bad..."
           cbpLogger.error(errMsg)
-          Left(InternalServerError(Json.obj("message" -> errMsg)))
+          Future.successful(Left(InternalServerError(Json.obj("message" -> errMsg))))
         }
       })
     }
@@ -163,23 +165,28 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               Enumeratee.zip(cav, tfIte)
             } else {
               if (!shouldFailOnError) {
-                Enumeratee.zip(Done(Left(ScanError("Could not connect to clamd")), Input.EOF), tfIte)
+                Enumeratee.zip(Done(Future.successful(Left(ScanError("Could not connect to clamd"))), Input.EOF), tfIte)
               } else {
                 throw new ConnectException("failOnError=true - throwing exception: Could not connect to clamd")
               }
             }
           } else {
             cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
-            Enumeratee.zip(Done(Right(FileOk()), Input.EOF), tfIte)
+            Enumeratee.zip(Done(Future.successful(Right(FileOk())), Input.EOF), tfIte)
           }
         } else {
+          /*
+            TODO: This bit should really be handled differently.The current implementation will log the exception as an
+            [error] severity in the log files...which it isn't...at most it's a warning. Reason being that it's the
+            PlayDefaultUpstramHandler that will actually end up catching this exception (due to the execution context
+            of the BodyParser), log it and send it to the Play Global.onError implementation.
+          */
           cbpLogger.info(s"Filename $filename contains illegal characters")
           throw new InvalidFilenameException(s"Filename $filename contains illegal characters")
         }
-    }
-    ).validateM(futureData => Future.successful {
+    }).validateM(futureData => {
       val data = futureData
-      data.files.head.ref._1 match {
+      data.files.head.ref._1.flatMap {
         case Left(err) =>
           // Ooops...there seems to be a problem with the clamd scan result.
           val temporaryFile = Option(data.files.head.ref._2)
@@ -189,20 +196,20 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               if (canRemoveInfectedFiles) {
                 temporaryFile.map(_.file.delete())
               }
-              Left(NotAcceptable(Json.obj("message" -> vf.message)))
+              Future.successful(Left(NotAcceptable(Json.obj("message" -> vf.message))))
             case err: ScanError =>
               if (canRemoveOnError) {
                 temporaryFile.map(_.file.delete())
               }
               if (shouldFailOnError) {
-                Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit.")))
+                Future.successful(Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit."))))
               } else {
-                Right(futureData)
+                Future.successful(Right(futureData))
               }
           }
         case Right(ok) =>
           // It's all good...
-          Right(futureData)
+          Future.successful(Right(futureData))
       }
     })
   }
@@ -214,7 +221,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    * Since the scan results have been validated as part of the parsing, we can be sure that the it passed through
    * successfully.
    */
-  def futureGridFSFile(implicit request: Request[MultipartFormData[(Either[ClamError, FileOk], Future[ReadFile[BSONValue]])]]) = {
+  def futureGridFSFile(implicit request: Request[MultipartFormData[ClammyGridFSBody]]) = {
     request.body.files.head.ref._2
   }
 

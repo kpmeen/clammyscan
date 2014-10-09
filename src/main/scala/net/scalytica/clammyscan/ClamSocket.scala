@@ -6,9 +6,9 @@ import java.net.{InetSocketAddress, Socket}
 import play.api.Logger
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 
-import scala.concurrent.Await
+// TODO: Use a different execution context?
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
+import scala.concurrent.Future
 
 class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
 
@@ -67,21 +67,23 @@ class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
   /**
    * Try to get the scan response from clamd...
    */
-  def clamResponse: String = {
+  def clamResponse: Future[String] = {
     if (isConnected) {
       out.writeInt(0)
       out.flush()
 
       // Consume the response stream from clamav using an enumerator...
-      val virusInformation = Await.result(Enumerator.fromStream(in) run Iteratee.fold[Array[Byte], String]("") {
+      val virusInformation = Enumerator.fromStream(in) run Iteratee.fold[Array[Byte], String]("") {
         case (s: String, bytes: Array[Byte]) =>
           s"$s${new String(bytes)}"
-      }, Duration.Inf)
+      }
 
-      logger.debug("Response from clamd: " + virusInformation)
-      virusInformation.trim
+      virusInformation.flatMap(vis => {
+        logger.debug("Response from clamd: " + vis)
+        Future.successful(vis.trim)
+      })
     } else {
-      "Not connected to clamd"
+      Future.successful("Not connected to clamd")
     }
   }
 

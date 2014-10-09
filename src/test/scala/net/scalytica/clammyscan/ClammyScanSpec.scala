@@ -1,6 +1,6 @@
 package net.scalytica.clammyscan
 
-import java.io.ByteArrayInputStream
+import java.io.{File, FileInputStream, ByteArrayInputStream}
 import java.util.concurrent.TimeUnit
 
 import org.specs2.execute._
@@ -21,15 +21,17 @@ class ClammyScanSpec extends Specification with FutureMatchers {
 
       val eicarEnumerator = Enumerator.fromStream(new ByteArrayInputStream(eicarString.getBytes))
 
-      val result = (eicarEnumerator run clamav.clamScan(file)).flatMap[Result] {
-        case Left(err) => Future.successful {
-          err match {
-            case vf: VirusFound => success(s"Found a virus in this one... :-(")
-            case ce: ClamError => failure(s"Got the excepted ClamError result")
+      val result = (eicarEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
+        eventuallyError.flatMap {
+          case Left(err) => Future.successful {
+            err match {
+              case vf: VirusFound => success(s"Found a virus in this one... :-(")
+              case ce: ClamError => failure(s"Got the excepted ClamError result")
+            }
           }
+          case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
         }
-        case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
-      }
+      })
       Await.result(result, Duration(3, TimeUnit.SECONDS))
     }
   }
@@ -38,10 +40,12 @@ class ClammyScanSpec extends Specification with FutureMatchers {
     "result in a successful scan without errors" in new scanFile("clean.pdf") {
       val clamav = new ClammyScan(ClamSocket())
 
-      val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result] {
-        case Left(vf) => Future.successful(failure(s"Found a virus in this one... :-("))
-        case Right(fok) => Future.successful(success(s"Successful scan of clean file :-)"))
-      }
+      val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
+        eventuallyError.flatMap {
+          case Left(vf) => Future.successful(failure(s"Found a virus in this one... :-("))
+          case Right(fok) => Future.successful(success(s"Successful scan of clean file :-)"))
+        }
+      })
       Await.result(result, Duration(2, TimeUnit.MINUTES))
     }
   }
@@ -50,18 +54,43 @@ class ClammyScanSpec extends Specification with FutureMatchers {
     "result in a clamav finding a virus" in new scanFile("eicarcom2.zip") {
       val clamav = new ClammyScan(ClamSocket())
 
-      val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result] {
-        case Left(err) => Future.successful {
-          err match {
-            case vf: VirusFound => success(s"Found a virus in this one... :-(")
-            case ce: ClamError => failure(s"Got the excepted ClamError result")
+      val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
+        eventuallyError.flatMap {
+          case Left(err) => Future.successful {
+            err match {
+              case vf: VirusFound => success(s"Found a virus in this one... :-(")
+              case ce: ClamError => failure(s"Got the excepted ClamError result")
+            }
           }
+          case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
         }
-        case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
-      }
+      })
       Await.result(result, Duration(2, TimeUnit.MINUTES))
     }
   }
+
+//  "Sending a clean LARGE file as a stream to ClamAV" should {
+//    "result in a successful scan without errors" in {
+//      val f = new File("/Users/m33n/Downloads/ideaIU-13.1.5.dmg")
+//      val fstream = new FileInputStream(f)
+//
+//      val fe = Enumerator.fromStream(fstream)
+//
+//      fe.onDoneEnumerating {
+//        fstream.close()
+//      }
+//
+//      val clamav = new ClammyScan(ClamSocket())
+//
+//      val result = (fe run clamav.clamScan(f.getName)).flatMap[Result](eventuallyError => {
+//        eventuallyError.flatMap {
+//          case Left(vf) => Future.successful(failure(s"Found an error with this one... :-("))
+//          case Right(fok) => Future.successful(success(s"Successful scan of clean file :-)"))
+//        }
+//      })
+//      Await.result(result, Duration(2, TimeUnit.MINUTES))
+//    }
+//  }
 
   class scanFile(fname: String = "nofile") extends Scope {
     val file = fname

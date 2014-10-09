@@ -24,8 +24,9 @@ class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
    * Iteratee based on the reactive mongo GridFS iteratee... adapted for clammy pleasures
    */
   // TODO: Specify custom execution context (could maybe just use the play trampoline?)
-  def clamScan(filename: String, chunkSize: Int = 262144)(implicit ec: ExecutionContext): Iteratee[Array[Byte], Either[ClamError, FileOk]] = {
+  def clamScan(filename: String, chunkSize: Int = 262144)(implicit ec: ExecutionContext): Iteratee[Array[Byte], Future[Either[ClamError, FileOk]]] = {
     logger.info(s"Preparing to scan file $filename with clamd...")
+    val startTime = System.currentTimeMillis()
 
     /**
      * local case class for handling chunks being sent to the Iteratee
@@ -62,20 +63,27 @@ class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
       /**
        * Process the last chunk and return the end result from clamd...
        */
-      def finish: Either[ClamError, FileOk] = {
+      def finish: Future[Either[ClamError, FileOk]] = {
         logger.debug("writing last chunk (n=" + n + ")!")
-
         clamSocket.writeChunk(n, previous)
-        val res = clamSocket.clamResponse
-        if (okResponse.equals(res.trim)) {
-          logger.info(s"No viruses found in $filename")
-          clamSocket.terminate()
-          Right(FileOk())
-        } else {
-          logger.warn(s"Virus detected in $filename: $res")
-          clamSocket.terminate()
-          Left(VirusFound(res))
-        }
+
+        logger.info(s"Waiting for scan report from clamav for $filename...")
+        val waitStart = System.currentTimeMillis()
+
+        clamSocket.clamResponse.flatMap[Either[ClamError, FileOk]](res => {
+          val endTime = System.currentTimeMillis()
+          logger.info(s"Scanning of $filename took ${endTime - startTime}ms. [Receiving: ${waitStart - startTime}ms - Processing: ${endTime - waitStart}ms]")
+
+          if (okResponse.equals(res)) {
+            logger.info(s"No viruses found in $filename")
+            clamSocket.terminate()
+            Future.successful(Right(FileOk()))
+          } else {
+            logger.warn(s"Virus detected in $filename: $res")
+            clamSocket.terminate()
+            Future.successful(Left(VirusFound(res)))
+          }
+        })
       }
 
     }
@@ -89,10 +97,10 @@ class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
     }).recover {
       case se: SocketException =>
         logger.warn(connectionError(filename))
-        Left(ScanError(connectionError(filename)))
+        Future.successful(Left(ScanError(connectionError(filename))))
       case e: Exception =>
         logger.error(unknownError(filename), e)
-        Left(ScanError(unknownError(filename)))
+        Future.successful(Left(ScanError(unknownError(filename))))
     }
   }
 
