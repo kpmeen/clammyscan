@@ -1,0 +1,47 @@
+<configuration>
+
+    <conversionRule conversionWord="coloredLevel" converterClass="play.api.Logger$ColoredLevel"/>
+
+    <!-- Will append log message to the standard out -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator> <!-- defaults to type ch.qos.logback.classic.boolex.JaninoEventEvaluator -->
+                <expression>
+                    String err1 = "net.scalytica.clammyscan.DuplicateFileException";
+                    String err2 = "net.scalytica.clammyscan.InvalidFilenameException";
+
+                    if (level == ERROR) {
+                      if (message.contains(err1) || message.contains(err2)) {
+                        return true;
+                      } else if (throwable.getCause() != null) {
+                        Throwable t = throwable.getCause();
+                        if (t.toString().contains(err1) || t.toString().contains(err2)) {
+                            return true;
+                        }
+                      }
+                    }
+
+                    return false;
+                </expression>
+            </evaluator>
+            <OnMismatch>NEUTRAL</OnMismatch>
+            <OnMatch>DENY</OnMatch>
+        </filter>
+        <!--<filter class="net.scalytica.logging.ClamLoggingFilter"/>-->
+        <encoder>
+            <pattern>%coloredLevel %logger{15} - %message%n%xException{5}</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="play" level="INFO" />
+    <logger name="application" level="INFO" />
+    <logger name="controllers" level="INFO" />
+
+    <logger name="reactivemongo" level="INFO" />
+
+    <!-- Root loggers catch all other events that are not explicitly handled-->
+    <root level="WARN">
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+</configuration>
