@@ -80,7 +80,12 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             if (!allowDuplicates && fileExists(fn)) {
               // If a file with the above query exists, abort the upload as we don't allow duplicates.
               cbpLogger.warn(s"File $fn already exists")
-              // TODO: This must be improved to avoid causing the exception to be logged by the PlayDefaultUpstreamHandler.
+              /*
+                TODO: This bit should really be handled differently.The current implementation will log the exception as an
+                [error] severity in the log files...which it isn't...at most it's a warning. Reason being that it's the
+                PlayDefaultUpstramHandler that will actually end up catching this exception (due to the execution context
+                of the BodyParser), log it and send it to the Play Global.onError implementation.
+              */
               throw new DuplicateFileException(s"File $fn already exists")
             } else {
               // Prepare the GridFS iteratee...
@@ -106,6 +111,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             }
           } else {
             cbpLogger.warn(s"Filename $fn contains illegal characters")
+            // TODO: See above...
             throw new InvalidFilenameException(s"Filename $fn contains illegal characters")
           }
       }).validateM(futureData => {
@@ -175,12 +181,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             Enumeratee.zip(Done(Future.successful(Right(FileOk())), Input.EOF), tfIte)
           }
         } else {
-          /*
-            TODO: This bit should really be handled differently.The current implementation will log the exception as an
-            [error] severity in the log files...which it isn't...at most it's a warning. Reason being that it's the
-            PlayDefaultUpstramHandler that will actually end up catching this exception (due to the execution context
-            of the BodyParser), log it and send it to the Play Global.onError implementation.
-          */
+          // TODO: See above...
           cbpLogger.info(s"Filename $filename contains illegal characters")
           throw new InvalidFilenameException(s"Filename $filename contains illegal characters")
         }
@@ -230,10 +231,8 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    */
   private def fileNameValid(filename: String): Boolean = {
     validFilenameRegex.map(regex => regex.r.findFirstMatchIn(URLDecoder.decode(filename, Codec.utf_8.charset)) match {
-      case Some(m) =>
-        false
-      case _ =>
-        true
+      case Some(m) => false
+      case _ => true
     }).getOrElse(true)
   }
 

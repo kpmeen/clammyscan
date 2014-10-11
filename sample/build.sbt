@@ -18,8 +18,8 @@ libraryDependencies ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.reactivemongo" %% "play2-reactivemongo" % "0.11.0-SNAPSHOT",
-  "org.reactivemongo" %% "reactivemongo" % "0.11.0-SNAPSHOT",
+  "org.reactivemongo" %% "play2-reactivemongo" % "0.10.5.0.akka23",
+  "org.reactivemongo" %% "reactivemongo" % "0.10.5.0.akka23",
   "net.scalytica" %% "clammyscan" % "0.18-SNAPSHOT",
   "org.codehaus.janino" % "janino" % "2.7.6",
   "org.specs2" %% "specs2" % "2.3.12" % "test"
