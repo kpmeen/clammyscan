@@ -23,7 +23,7 @@ libraryDependencies += "net.scalytica" %% "clammyscan" % "0.19"
 
 ClammyScan has some configurable parameters. At the moment the configurable parameters are as follows, and should be located in the application.conf file:
 
-```hocon
+```bash
 # ClammyScan configuration
 # ------------------------
 clammyscan {
