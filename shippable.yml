@@ -3,6 +3,10 @@ scala:
 - 2.10.4
 - 2.11.2
 
+build_image: shippableimages/ubuntu1404_scala
+
+cache: true
+
 install:
 - sudo apt-get update
 - sudo apt-get install clamav clamav-daemon clamav-freshclam -qq
