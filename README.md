@@ -71,7 +71,7 @@ object Application extends Controller with MongoController with ClammyBodyParser
   }
 }
 ```
-It is also possible to, optionally, specify any additional metadata to use in GridFS for the saved file. For example, if you have a few request parameters that need to be set, this can be done by passing them to the body parser.
+It is also, optionally, possible to specify any additional metadata to use in GridFS for the saved file. For example, if you have a few request parameters that need to be set, this can be done by passing them to the body parser.
 
 ```scala
 object Application extends Controller with MongoController with ClammyBodyParsers {
