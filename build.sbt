@@ -10,9 +10,9 @@ javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 
 scalacOptions ++= Seq("-feature", "-language:higherKinds")
 
-scalaVersion := "2.10.4"
+scalaVersion := "2.11.4"
 
-crossScalaVersions := Seq("2.10.4", "2.11.2")
+crossScalaVersions := Seq("2.10.4", "2.11.4")
 
 publishArtifact in Test := false
 
