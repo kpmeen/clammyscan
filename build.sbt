@@ -26,8 +26,8 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play" % "2.3.7" % "provided" cross CrossVersion.binary,
-  "com.typesafe.play" %% "play-test" % "2.3.7" % "test" cross CrossVersion.binary,
+  "com.typesafe.play" %% "play" % "2.3.8" % "provided" cross CrossVersion.binary,
+  "com.typesafe.play" %% "play-test" % "2.3.8" % "test" cross CrossVersion.binary,
   "org.reactivemongo" %% "play2-reactivemongo" % "0.10.5.0.akka23" % "provided" cross CrossVersion.binary,
   "org.specs2" %% "specs2-core" % "2.4.14" % "test" cross CrossVersion.binary
 )
