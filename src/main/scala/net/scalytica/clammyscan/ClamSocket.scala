@@ -7,7 +7,6 @@ import play.api.Logger
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 
 // TODO: Use a different execution context?
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 

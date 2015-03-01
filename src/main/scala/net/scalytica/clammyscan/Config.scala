@@ -100,7 +100,7 @@ trait ClammyParserConfig extends ConfigKeys {
   /**
    * Allows defining a regular expression to validate filenames for illegal characters. A good one could e.g. be:
    * <code>
-   *  (.[\"\*\\\>\<\?\/\:\|].)|(.[\.]?.[\.]$)|(.*[ ]+$)
+   * (.[\"\*\\\>\<\?\/\:\|].)|(.[\.]?.[\.]$)|(.*[ ]+$)
    * </code>
    *
    */

@@ -40,7 +40,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               val clamav = new ClammyScan(socket)
               clamav.clamScan(filename)
             } else {
-              fail(Done(Future.successful(Left(CouldNotConnect)), Input.EOF))
+              failedConnection(Done(Future.successful(Left(CouldNotConnect)), Input.EOF))
             }
           }
           else {
@@ -64,9 +64,13 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    * W => Writer
    * Id => extends BSONValue
    */
-  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](gfs: GridFS[S, R, W], fileName: Option[String] = None, metaData: Option[BSONDocument], allowDuplicates: Boolean = allowDuplicateFiles)
-                                                          (fileExists: (String) => Boolean)
-                                                          (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext): BodyParser[MultipartFormData[ClammyGridFSBody]] =
+  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](
+    gfs: GridFS[S, R, W],
+    fileName: Option[String] = None,
+    metaData: Option[BSONDocument],
+    allowDuplicates: Boolean = allowDuplicateFiles)(fileExists: (String) => Boolean)
+    (implicit fReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext): BodyParser[MultipartFormData[ClammyGridFSBody]] =
+
     parse.using { request =>
 
       val fileToSave = (fileName: String, contentType: Option[String]) =>
@@ -99,7 +103,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
                   val cav = clamav.clamScan(fn)
                   Enumeratee.zip(cav, git)
                 } else {
-                  fail(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), git))
+                  failedConnection(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), git))
                 }
               } else {
                 cbpLogger.info(s"Scanning is disabled. $fn will not be scanned")
@@ -117,22 +121,8 @@ trait ClammyBodyParsers extends ClammyParserConfig {
           case Left(err) =>
             // Ooops...there seems to be a problem with the clamd scan result.
             val maybeFutureFile = Option(data.files.head.ref._2)
-            err match {
-              case vf: VirusFound =>
-                // We have encountered the dreaded VIRUS...run awaaaaay
-                if (canRemoveInfectedFiles) {
-                  maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
-                }
-                Future.successful(Left(NotAcceptable(Json.obj("message" -> vf.message))))
-              case err: ScanError =>
-                if (canRemoveOnError) {
-                  maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
-                }
-                if (shouldFailOnError) {
-                  Future.successful(Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit."))))
-                } else {
-                  Future.successful(Right(futureData))
-                }
+            handleError(futureData, err) {
+              maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
             }
           case Right(ok) =>
             // It's all good...
@@ -167,7 +157,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               val cav = clamav.clamScan(filename)
               Enumeratee.zip(cav, tfIte)
             } else {
-              fail(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), tfIte))
+              failedConnection(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), tfIte))
             }
           } else {
             cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
@@ -184,22 +174,8 @@ trait ClammyBodyParsers extends ClammyParserConfig {
         case Left(err) =>
           // Ooops...there seems to be a problem with the clamd scan result.
           val temporaryFile = Option(data.files.head.ref._2)
-          err match {
-            case vf: VirusFound =>
-              // We have encountered the dreaded VIRUS...run awaaaaay
-              if (canRemoveInfectedFiles) {
-                temporaryFile.map(_.file.delete())
-              }
-              Future.successful(Left(NotAcceptable(Json.obj("message" -> vf.message))))
-            case err: ScanError =>
-              if (canRemoveOnError) {
-                temporaryFile.map(_.file.delete())
-              }
-              if (shouldFailOnError) {
-                Future.successful(Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit."))))
-              } else {
-                Future.successful(Right(futureData))
-              }
+          handleError(futureData, err) {
+            temporaryFile.foreach(_.file.delete())
           }
         case Right(ok) =>
           // It's all good...
@@ -209,10 +185,33 @@ trait ClammyBodyParsers extends ClammyParserConfig {
   }
 
   /**
+   * Function specifically for handling the ClamError cases in the validation step
+   */
+  private def handleError[A](fud: MultipartFormData[(Future[ClamResponse], A)], err: ClamError)(onError: => Unit)(implicit ec: ExecutionContext) = {
+    err match {
+      case vf: VirusFound =>
+        // We have encountered the dreaded VIRUS...run awaaaaay
+        if (canRemoveInfectedFiles) {
+          temporaryFile.map(_.file.delete())
+        }
+        Future.successful(Left(NotAcceptable(Json.obj("message" -> vf.message))))
+      case err: ScanError =>
+        if (canRemoveOnError) {
+          onError
+        }
+        if (shouldFailOnError) {
+          Future.successful(Left(BadRequest(Json.obj("message" -> "File size exceeds maximum file size limit."))))
+        } else {
+          Future.successful(Right(fud))
+        }
+    }
+  }
+
+  /**
    * Error handling for when the connection to ClamAV cannot be established
    */
   @throws(classOf[ConnectException])
-  private def fail[A, B](a: Iteratee[A, B]) = {
+  private def failedConnection[A, B](a: Iteratee[A, B]): Iteratee[A, B] = {
     if (!shouldFailOnError) a else throw new ConnectException(CouldNotConnect.message)
   }
 
