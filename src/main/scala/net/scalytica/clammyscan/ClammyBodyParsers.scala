@@ -22,6 +22,8 @@ trait ClammyBodyParsers extends ClammyParserConfig {
 
   val cbpLogger = Logger(classOf[ClammyBodyParsers])
 
+  private val CouldNotConnect = ScanError("Could not connect to clamd")
+
   type ClamResponse = Either[ClamError, FileOk]
   type ClammyGridFSBody = (Future[ClamResponse], Future[ReadFile[BSONValue]])
 
@@ -38,11 +40,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               val clamav = new ClammyScan(socket)
               clamav.clamScan(filename)
             } else {
-              if (!shouldFailOnError) {
-                Done(Future.successful(Left(ScanError("Could not connect to clamd"))), Input.EOF)
-              } else {
-                throw new ConnectException("Could not connect to clamd")
-              }
+              fail(Done(Future.successful(Left(CouldNotConnect)), Input.EOF))
             }
           }
           else {
@@ -71,7 +69,10 @@ trait ClammyBodyParsers extends ClammyParserConfig {
                                                           (implicit readFileReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext): BodyParser[MultipartFormData[ClammyGridFSBody]] =
     parse.using { request =>
 
-      val fileToSave = (fileName: String, contentType: Option[String]) => metaData.fold(DefaultFileToSave(fileName, contentType))(md => DefaultFileToSave(fileName, contentType, metadata = md))
+      val fileToSave = (fileName: String, contentType: Option[String]) =>
+        metaData.fold(
+          DefaultFileToSave(fileName, contentType)
+        )(md => DefaultFileToSave(fileName, contentType, metadata = md))
 
       multipartFormData(Multipart.handleFilePart {
         case Multipart.FileInfo(partName, fname, contentType) => // TODO: Maybe override this to get greater control on exceptions?
@@ -98,11 +99,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
                   val cav = clamav.clamScan(fn)
                   Enumeratee.zip(cav, git)
                 } else {
-                  if (!shouldFailOnError) {
-                    Enumeratee.zip(Done(Future.successful(Left(ScanError("Could not connect to clamd"))), Input.EOF), git)
-                  } else {
-                    throw new ConnectException("Could not connect to clamd")
-                  }
+                  fail(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), git))
                 }
               } else {
                 cbpLogger.info(s"Scanning is disabled. $fn will not be scanned")
@@ -170,11 +167,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
               val cav = clamav.clamScan(filename)
               Enumeratee.zip(cav, tfIte)
             } else {
-              if (!shouldFailOnError) {
-                Enumeratee.zip(Done(Future.successful(Left(ScanError("Could not connect to clamd"))), Input.EOF), tfIte)
-              } else {
-                throw new ConnectException("failOnError=true - throwing exception: Could not connect to clamd")
-              }
+              fail(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), tfIte))
             }
           } else {
             cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
@@ -216,14 +209,11 @@ trait ClammyBodyParsers extends ClammyParserConfig {
   }
 
   /**
-   * Convenience function for retrieving the actual FilePart from the request, after scanning and
-   * saving has been completed.
-   *
-   * Since the scan results have been validated as part of the parsing, we can be sure that the it passed through
-   * successfully.
+   * Error handling for when the connection to ClamAV cannot be established
    */
-  def futureGridFSFile(implicit request: Request[MultipartFormData[ClammyGridFSBody]]) = {
-    request.body.files.head.ref._2
+  @throws(classOf[ConnectException])
+  private def fail[A, B](a: Iteratee[A, B]) = {
+    if (!shouldFailOnError) a else throw new ConnectException(CouldNotConnect.message)
   }
 
   /**
@@ -234,6 +224,17 @@ trait ClammyBodyParsers extends ClammyParserConfig {
       case Some(m) => false
       case _ => true
     }).getOrElse(true)
+  }
+
+  /**
+   * Convenience function for retrieving the actual FilePart from the request, after scanning and
+   * saving has been completed.
+   *
+   * Since the scan results have been validated as part of the parsing, we can be sure that the it passed through
+   * successfully.
+   */
+  def futureGridFSFile(implicit request: Request[MultipartFormData[ClammyGridFSBody]]) = {
+    request.body.files.head.ref._2
   }
 
 }
