@@ -3,6 +3,8 @@
 
 # ClammyScan
 
+[![Join the chat at https://gitter.im/scalytica/clammyscan](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scalytica/clammyscan?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 There isn't really all that much to it. The Play-ReactiveMongo plugin, which this library depends on, comes with a gridfsBodyParser that allows streaming file uploads directly into MongoDB. ClammyScan implements its own BodyParser, that will both scan the file stream with clamd (over TCP using INSTREAM) and save it to MongoDB. If the file contains a virus or is otherwise infected, it is removed from GridFS...and returns an HTTP NotAcceptable. If the file is OK, the Controller will have the file part available for further processing in the request.
 
 There are plans to improve on this library to make it more generic and usable. For example allowing the use of other mechanisms for file persistence than reactive-mongo. And and option that just handles virus-scanning before entering the Controller.
