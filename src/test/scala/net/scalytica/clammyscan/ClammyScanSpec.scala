@@ -1,6 +1,6 @@
 package net.scalytica.clammyscan
 
-import java.io.{File, FileInputStream, ByteArrayInputStream}
+import java.io.ByteArrayInputStream
 import java.util.concurrent.TimeUnit
 
 import org.specs2.execute._
@@ -12,6 +12,8 @@ import play.api.libs.iteratee._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Left, Right}
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class ClammyScanSpec extends Specification with FutureMatchers {
 
@@ -69,33 +71,10 @@ class ClammyScanSpec extends Specification with FutureMatchers {
     }
   }
 
-//  "Sending a clean LARGE file as a stream to ClamAV" should {
-//    "result in a successful scan without errors" in {
-//      val f = new File("/Users/m33n/Downloads/ideaIU-13.1.5.dmg")
-//      val fstream = new FileInputStream(f)
-//
-//      val fe = Enumerator.fromStream(fstream)
-//
-//      fe.onDoneEnumerating {
-//        fstream.close()
-//      }
-//
-//      val clamav = new ClammyScan(ClamSocket())
-//
-//      val result = (fe run clamav.clamScan(f.getName)).flatMap[Result](eventuallyError => {
-//        eventuallyError.flatMap {
-//          case Left(vf) => Future.successful(failure(s"Found an error with this one... :-("))
-//          case Right(fok) => Future.successful(success(s"Successful scan of clean file :-)"))
-//        }
-//      })
-//      Await.result(result, Duration(2, TimeUnit.MINUTES))
-//    }
-//  }
-
   class scanFile(fname: String = "nofile") extends Scope {
     val file = fname
 
-    val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\0"
+    val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\u0000"
 
     val fileStream = this.getClass.getResourceAsStream(s"/$file")
     val fileEnumerator = Enumerator.fromStream(fileStream)

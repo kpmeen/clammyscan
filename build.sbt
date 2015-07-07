@@ -1,18 +1,16 @@
 name := """clammyscan"""
 
-version := "0.21-SNAPSHOT"
+version := "0.22-SNAPSHOT"
 
 organization := "net.scalytica"
 
 licenses +=("MIT", url("http://opensource.org/licenses/MIT"))
 
-javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
+javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
-scalacOptions ++= Seq("-feature", "-language:higherKinds")
+scalacOptions ++= Seq("-deprecation", "-feature", "-language:higherKinds")
 
-scalaVersion := "2.11.4"
-
-crossScalaVersions := Seq("2.10.4", "2.11.4")
+scalaVersion := "2.11.7"
 
 publishArtifact in Test := false
 
@@ -26,9 +24,7 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play" % "2.3.8" % "provided" cross CrossVersion.binary,
-  "com.typesafe.play" %% "play-test" % "2.3.8" % "test" cross CrossVersion.binary,
-  "org.reactivemongo" %% "play2-reactivemongo" % "0.10.5.0.akka23" % "provided" cross CrossVersion.binary,
-  "org.specs2" %% "specs2-core" % "2.4.14" % "test" cross CrossVersion.binary
+  "com.typesafe.play" %% "play" % "2.4.2" % "provided",
+  "com.typesafe.play" %% "play-test" % "2.4.2" % "test",
+  "org.specs2" %% "specs2-core" % "3.6.2" % "test"
 )
-

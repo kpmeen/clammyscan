@@ -7,7 +7,6 @@ trait ConfigKeys {
   val hostKey = "clammyscan.clamd.host"
   val portKey = "clammyscan.clamd.port"
   val timeoutKey = "clammyscan.clamd.timeout"
-  val gridfsDuplicateFilesKey = "clammyscan.gridfs.allowDuplicateFiles"
   val removeInfectedKey = "clammyscan.removeInfected"
   val removeOnErrorKey = "clammyscan.removeOnError"
   val failOnErrorKey = "clammyscan.failOnError"
@@ -46,15 +45,6 @@ trait ClamConfig extends ConfigKeys {
 }
 
 trait ClammyParserConfig extends ConfigKeys {
-
-  /**
-   * Indicates whether or not to allow storing duplicate file names... default value is true
-   */
-  def allowDuplicateFiles: Boolean = {
-    maybeApplication.map(_.configuration.getBoolean(gridfsDuplicateFilesKey).getOrElse(true)).getOrElse {
-      ConfigFactory.load.getBoolean(gridfsDuplicateFilesKey)
-    }
-  }
 
   /**
    * Remove file if it is infected... defaults value is true

@@ -9,8 +9,7 @@ import play.api.libs.iteratee._
 import play.api.libs.json.Json
 import play.api.mvc.BodyParsers.parse._
 import play.api.mvc._
-import reactivemongo.api.gridfs.{DefaultFileToSave, GridFS, ReadFile}
-import reactivemongo.bson._
+import play.core.parsers.Multipart
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -25,7 +24,6 @@ trait ClammyBodyParsers extends ClammyParserConfig {
   private val CouldNotConnect = ScanError("Could not connect to clamd")
 
   type ClamResponse = Either[ClamError, FileOk]
-  type ClammyGridFSBody = (Future[ClamResponse], Future[ReadFile[BSONValue]])
 
   /**
    * Mostly for convenience this. If you need a service for just scanning a file for infections, this is it.
@@ -47,91 +45,6 @@ trait ClammyBodyParsers extends ClammyParserConfig {
             cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
             Done(Future.successful(Right(FileOk())), Input.EOF)
           }
-      })
-    }
-
-  /**
-   * Gets a body parser that will save a file, with specified metadata and filename,
-   * sent with multipart/form-data into the given GridFS store.
-   *
-   * First the stream is sent to both the ClamScan Iteratee and the GridFS Iteratee using Enumeratee.zip.
-   * Then, when both Iteratees are done and none of them ended up in an Error state, the response is validated to check
-   * for the presence of a ClamError. If this is found in the result, the file is removed from GridFS and
-   * a JSON Result is returned.
-   *
-   * S => Structure
-   * R => Reader
-   * W => Writer
-   * Id => extends BSONValue
-   */
-  def scanAndParseAsGridFS[S, R[_], W[_], Id <: BSONValue](
-    gfs: GridFS[S, R, W],
-    fileName: Option[String] = None,
-    metaData: Option[BSONDocument],
-    allowDuplicates: Boolean = allowDuplicateFiles)(fileExists: (String) => Boolean)
-    (implicit fReader: R[ReadFile[BSONValue]], sWriter: W[BSONDocument], ec: ExecutionContext): BodyParser[MultipartFormData[ClammyGridFSBody]] =
-
-    parse.using { request =>
-
-      val fileToSave = (fileName: String, contentType: Option[String]) =>
-        metaData.fold(
-          DefaultFileToSave(fileName, contentType)
-        )(md => DefaultFileToSave(fileName, contentType, metadata = md))
-
-      multipartFormData(Multipart.handleFilePart {
-        case Multipart.FileInfo(partName, fname, contentType) => // TODO: Maybe override this to get greater control on exceptions?
-          val fn = fileName.getOrElse(fname)
-          if (fileNameValid(fn)) {
-            if (!allowDuplicates && fileExists(fn)) {
-              // If a file with the above query exists, abort the upload as we don't allow duplicates.
-              cbpLogger.warn(s"File $fn already exists")
-              /*
-                TODO: This bit should really be handled differently.The current implementation will log the exception as an
-                [error] severity in the log files...which it isn't...at most it's a warning. Reason being that it's the
-                PlayDefaultUpstramHandler that will actually end up catching this exception (due to the execution context
-                of the BodyParser), log it and send it to the Play Global.onError implementation.
-              */
-              throw new DuplicateFileException(s"File $fn already exists")
-            } else {
-              // Prepare the GridFS iteratee...
-              val git = gfs.iteratee(fileToSave(fn, contentType))
-              if (!scanDisabled) {
-                // Prepare the ClamScan iteratee
-                val socket = ClamSocket()
-                if (socket.isConnected) {
-                  val clamav = new ClammyScan(socket)
-                  val cav = clamav.clamScan(fn)
-                  Enumeratee.zip(cav, git)
-                } else {
-                  failedConnection(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), git))
-                }
-              } else {
-                cbpLogger.info(s"Scanning is disabled. $fn will not be scanned")
-                Enumeratee.zip(Done(Future.successful(Right(FileOk())), Input.EOF), git)
-              }
-            }
-          } else {
-            cbpLogger.warn(s"Filename $fn contains illegal characters")
-            // TODO: See above...
-            throw new InvalidFilenameException(s"Filename $fn contains illegal characters")
-          }
-      }).validateM(futureData => {
-        val data = futureData
-        data.files.headOption.map(ef => ef.ref._1.flatMap {
-          case Left(err) =>
-            // Ooops...there seems to be a problem with the clamd scan result.
-            val maybeFutureFile = Option(data.files.head.ref._2)
-            handleError(futureData, err) {
-              maybeFutureFile.map(theFile => theFile.map(f => gfs.remove(f.id)))
-            }
-          case Right(ok) =>
-            // It's all good...
-            Future.successful(Right(futureData))
-        }).getOrElse {
-          val errMsg = "Could not find file reference to in files list. This is bad..."
-          cbpLogger.error(errMsg)
-          Future.successful(Left(InternalServerError(Json.obj("message" -> errMsg))))
-        }
       })
     }
 
@@ -223,17 +136,6 @@ trait ClammyBodyParsers extends ClammyParserConfig {
       case Some(m) => false
       case _ => true
     }).getOrElse(true)
-  }
-
-  /**
-   * Convenience function for retrieving the actual FilePart from the request, after scanning and
-   * saving has been completed.
-   *
-   * Since the scan results have been validated as part of the parsing, we can be sure that the it passed through
-   * successfully.
-   */
-  def futureGridFSFile(implicit request: Request[MultipartFormData[ClammyGridFSBody]]) = {
-    request.body.files.head.ref._2
   }
 
 }

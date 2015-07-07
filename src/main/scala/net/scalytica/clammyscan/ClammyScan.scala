@@ -27,7 +27,7 @@ class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
     logger.info(s"Preparing to scan file $filename with clamd...")
     val startTime = System.currentTimeMillis()
 
-    /**
+    /*
      * local case class for handling chunks being sent to the Iteratee
      *
      * @param previous the previous chunk

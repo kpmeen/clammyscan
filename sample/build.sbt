@@ -6,7 +6,7 @@ version := "1.0-SNAPSHOT"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
-scalaVersion := "2.10.4"
+scalaVersion := "2.11.7"
 
 scalacOptions ++= Seq("-feature", "-language:postfixOps", "-language:higherKinds")
 
@@ -18,9 +18,7 @@ libraryDependencies ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.reactivemongo" %% "play2-reactivemongo" % "0.10.5.0.akka23",
-  "org.reactivemongo" %% "reactivemongo" % "0.10.5.0.akka23",
-  "net.scalytica" %% "clammyscan" % "0.21-SNAPSHOT",
+  "net.scalytica" %% "clammyscan" % "0.22-SNAPSHOT",
   "org.codehaus.janino" % "janino" % "2.7.6",
   "org.specs2" %% "specs2" % "2.3.12" % "test"
 )
