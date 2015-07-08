@@ -20,7 +20,7 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "net.scalytica" %% "clammyscan" % "0.22-SNAPSHOT",
   "org.codehaus.janino" % "janino" % "2.7.6",
-  "org.specs2" %% "specs2" % "2.3.12" % "test"
+  "org.specs2" %% "specs2-core" % "3.6.2" % "test"
 )
 
 resolvers ++= Seq(
@@ -28,5 +28,6 @@ resolvers ++= Seq(
   "Sonatype Releases" at "http://oss.sonatype.org/content/repositories/releases",
   "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
   "JCenter" at "http://jcenter.bintray.com/",
-  "embedded mongo repository" at "http://oss.sonatype.org/content/repositories/releases"
+  "embedded mongo repository" at "http://oss.sonatype.org/content/repositories/releases",
+  "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
 )
