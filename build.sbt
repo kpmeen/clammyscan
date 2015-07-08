@@ -9,6 +9,7 @@ licenses +=("MIT", url("http://opensource.org/licenses/MIT"))
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
 scalacOptions ++= Seq("-deprecation", "-feature", "-language:higherKinds")
+scalacOptions in Test ++= Seq("-Yrangepos")
 
 scalaVersion := "2.11.7"
 
@@ -20,7 +21,8 @@ resolvers ++= Seq(
   "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
   "Sonatype" at "http://oss.sonatype.org/content/groups/public/",
   "Typesafe repository releases" at "http://repo.typesafe.com/typesafe/releases/",
-  "Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/"
+  "Typesafe repository snapshots" at "http://repo.typesafe.com/typesafe/snapshots/",
+  "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
 )
 
 libraryDependencies ++= Seq(
