@@ -17,4 +17,4 @@ install:
 - sudo service clamav-daemon start
 
 script:
-- sbt compile test
+- sbt clean test
