@@ -11,7 +11,7 @@ javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 scalacOptions ++= Seq("-deprecation", "-feature", "-language:higherKinds")
 scalacOptions in Test ++= Seq("-Yrangepos")
 
-scalaVersion := "2.11.6"
+scalaVersion := "2.11.7"
 
 publishArtifact in Test := false
 

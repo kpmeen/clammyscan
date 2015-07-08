@@ -1,13 +1,13 @@
 language: scala
 scala:
-- 2.11.6
+- 2.11.7
 
 jdk:
 - oraclejdk8
 
 build_image: shippableimages/ubuntu1404_scala
 
-cache: true
+cache: false
 
 install:
 - sudo apt-get update
