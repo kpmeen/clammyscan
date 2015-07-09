@@ -8,13 +8,6 @@ jdk:
 # Custom image...
 build_image: kpmeen/docker-clamav-scala
 
-# install:
-#- sudo apt-get update
-#- sudo apt-get install clamav clamav-daemon clamav-freshclam -qq
-#- sudo sed -i "\$aTCPSocket 3310" /etc/clamav/clamd.conf
-#- sudo freshclam
-#- sudo service clamav-daemon start
-
 script:
 - sbt clean test
 
