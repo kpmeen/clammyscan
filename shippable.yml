@@ -8,6 +8,9 @@ jdk:
 # Custom image...
 build_image: kpmeen/docker-clamav-scala
 
+# start clamav
+before_script: /bootstrap.sh
+
 # run tests...
 script:
 - sbt clean test
