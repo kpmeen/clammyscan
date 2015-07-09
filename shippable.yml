@@ -5,7 +5,7 @@ scala:
 #jdk:
 #- oraclejdk8
 
-build_image: docker pull kpmeen/docker-clamav-scala
+build_image: kpmeen/docker-clamav-scala
 
 # install:
 #- sudo apt-get update
