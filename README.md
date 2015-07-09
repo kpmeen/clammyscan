@@ -1,6 +1,8 @@
 
 [![Build Status](https://api.shippable.com/projects/54971a6ad46935d5fbc0c29f/badge?branchName=master)](https://app.shippable.com/projects/54971a6ad46935d5fbc0c29f/builds/latest)   [![Join the chat at https://gitter.im/scalytica/clammyscan](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scalytica/clammyscan?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
+**_Currently undergoing some changes..._**
+
 # ClammyScan
 
 There isn't really all that much to it. ClammyScan implements its own BodyParser, that can scan incoming files with clamd (over TCP using INSTREAM). If the file contains a virus or is otherwise infected, a HTTP NotAcceptable is returned with a message explaining why. If the file is OK, the Controller will have the file part available for further processing in the request.
