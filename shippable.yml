@@ -5,6 +5,7 @@ scala:
 jdk:
 - oraclejdk8
 
+# Custom image...
 build_image: kpmeen/docker-clamav-scala
 
 # install:
