@@ -2,17 +2,17 @@ language: scala
 scala:
 - 2.11.7
 
-jdk:
-- oraclejdk8
+#jdk:
+#- oraclejdk8
 
-build_image: shippableimages/ubuntu1404_scala
+build_image: docker pull kpmeen/docker-clamav-scala
 
-install:
-- sudo apt-get update
-- sudo apt-get install clamav clamav-daemon clamav-freshclam -qq
-- sudo sed -i "\$aTCPSocket 3310" /etc/clamav/clamd.conf
-- sudo freshclam
-- sudo service clamav-daemon start
+# install:
+#- sudo apt-get update
+#- sudo apt-get install clamav clamav-daemon clamav-freshclam -qq
+#- sudo sed -i "\$aTCPSocket 3310" /etc/clamav/clamd.conf
+#- sudo freshclam
+#- sudo service clamav-daemon start
 
 script:
 - sbt clean test
