@@ -32,7 +32,7 @@ object Application extends Controller with ClammyBodyParsers {
   /**
    * Scan with temp file
    */
-  def scanTempFile = Action(scanAndParseAsTempFile) { request =>
+  def scanTempFile = Action(scanWithTempFile) { request =>
     Ok(Json.obj("message" -> s"${request.body.files.head.ref._2.file.getName} uploaded successfully"))
   }
 

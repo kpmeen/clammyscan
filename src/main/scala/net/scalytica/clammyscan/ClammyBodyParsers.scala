@@ -1,6 +1,5 @@
 package net.scalytica.clammyscan
 
-import java.io.FileOutputStream
 import java.net.{ConnectException, URLDecoder}
 
 import play.api.Logger
@@ -48,54 +47,64 @@ trait ClammyBodyParsers extends ClammyParserConfig {
       })
     }
 
+  def scan[A](fileIteratee: => Iteratee[Array[Byte], A], remove: A => Unit)(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], A)]] =
+    parse.using { request =>
+      multipartFormData(Multipart.handleFilePart {
+        case Multipart.FileInfo(partName, filename, contentType) =>
+          if (fileNameValid(filename)) {
+            if (!scanDisabled) {
+              // Scan with clammy
+              val socket = ClamSocket()
+              if (socket.isConnected) {
+                val clamav = new ClammyScan(socket)
+                val cav = clamav.clamScan(filename)
+                Enumeratee.zip(cav, fileIteratee)
+              } else {
+                failedConnection(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), fileIteratee))
+              }
+            } else {
+              cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
+              Enumeratee.zip(Done(Future.successful(Right(FileOk())), Input.EOF), fileIteratee)
+            }
+          } else {
+            cbpLogger.info(s"Filename $filename contains illegal characters")
+            throw new InvalidFilenameException(s"Filename $filename contains illegal characters")
+          }
+      }).validateM(futureData => {
+        val data = futureData
+        data.files.head.ref._1.flatMap {
+          case Left(err) =>
+            // Ooops...there seems to be a problem with the clamd scan result.
+            val maybeFile = data.files.headOption.map(_.ref._2)
+            handleError(futureData, err) {
+              maybeFile.foreach(f => remove(f))
+            }
+          case Right(ok) =>
+            // It's all good...
+            Future.successful(Right(futureData))
+        }
+      })
+    }
+
   /**
    * Scans file for virus and buffers to a temporary file. Temp file is removed if file is infected.
    */
-  def scanAndParseAsTempFile(implicit ec: ExecutionContext) = parse.using { request =>
-    multipartFormData(Multipart.handleFilePart {
-      case Multipart.FileInfo(partName, filename, contentType) =>
-        if (fileNameValid(filename)) {
-          val tempFile = TemporaryFile("multipartBody", "asTemporaryFile")
-          val tfIte = Iteratee.fold[Array[Byte], FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
-            os.write(data)
-            os
-          }.map { os =>
-            os.close()
-            tempFile
-          }
-          if (!scanDisabled) {
-            val socket = ClamSocket()
-            if (socket.isConnected) {
-              val clamav = new ClammyScan(socket)
-              val cav = clamav.clamScan(filename)
-              Enumeratee.zip(cav, tfIte)
-            } else {
-              failedConnection(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), tfIte))
-            }
-          } else {
-            cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
-            Enumeratee.zip(Done(Future.successful(Right(FileOk())), Input.EOF), tfIte)
-          }
-        } else {
-          // TODO: See above...
-          cbpLogger.info(s"Filename $filename contains illegal characters")
-          throw new InvalidFilenameException(s"Filename $filename contains illegal characters")
+  def scanWithTempFile(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], TemporaryFile)]] =
+    scan[TemporaryFile](
+      fileIteratee = {
+        val tempFile = TemporaryFile("multipartBody", "asTemporaryFile")
+        Iteratee.fold[Array[Byte], java.io.FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
+          os.write(data)
+          os
+        }.map { os =>
+          os.close()
+          tempFile
         }
-    }).validateM(futureData => {
-      val data = futureData
-      data.files.head.ref._1.flatMap {
-        case Left(err) =>
-          // Ooops...there seems to be a problem with the clamd scan result.
-          val temporaryFile = Option(data.files.head.ref._2)
-          handleError(futureData, err) {
-            temporaryFile.foreach(_.file.delete())
-          }
-        case Right(ok) =>
-          // It's all good...
-          Future.successful(Right(futureData))
+      },
+      remove = { tmpFile =>
+        tmpFile.file.delete()
       }
-    })
-  }
+    )
 
   /**
    * Function specifically for handling the ClamError cases in the validation step
