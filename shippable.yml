@@ -13,5 +13,10 @@ install: /bootstrap.sh
 
 # run tests...
 script:
-- sbt clean test
+- sbt clean coverage test
+
+# Make coverage report available
+after_script:
+  - mkdir -p shippable/codecoverage
+  - mv target/scala-2.11/coverage-report/cobertura.xml $PWD/shippable/codecoverage/
 
