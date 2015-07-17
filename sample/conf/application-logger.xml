@@ -13,6 +13,7 @@
     <logger name="application" level="INFO"/>
     <logger name="controllers" level="INFO"/>
     <logger name="net.scalytica.clammyscan" level="INFO"/>
+    <logger name="akka" level="INFO" />
 
     <!-- Root loggers catch all other events that are not explicitly handled-->
     <root level="WARN">

@@ -1,16 +1,15 @@
 package controllers
 
+import javax.inject.Singleton
+
 import net.scalytica.clammyscan.{ClammyBodyParsers, VirusFound}
 import play.api.Logger
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.Json
 import play.api.mvc._
 
-import scala.concurrent._
-import scala.concurrent.duration._
-
-object Application extends Controller with ClammyBodyParsers {
-
+@Singleton
+class Application extends Controller with ClammyBodyParsers {
 
   val logger = Logger(this.getClass)
 
@@ -18,7 +17,7 @@ object Application extends Controller with ClammyBodyParsers {
    * Testing streaming virus scanning of files with no persistence.
    */
   def scanFile = Action.async(scanOnly) { request =>
-    request.body.files.head.ref.map {
+    request.body.files.head.ref._1.map {
       case Left(err) =>
         err match {
           case vf: VirusFound => NotAcceptable(Json.obj("message" -> vf.message))

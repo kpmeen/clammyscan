@@ -8,6 +8,8 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
 scalaVersion := "2.11.7"
 
+routesGenerator := InjectedRoutesGenerator
+
 scalacOptions ++= Seq("-feature", "-language:postfixOps", "-language:higherKinds")
 
 javaOptions in Test ++= Seq("-Dlogger.file=test/resources/logback-test.xml")

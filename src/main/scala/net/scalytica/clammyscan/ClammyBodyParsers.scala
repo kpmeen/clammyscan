@@ -24,47 +24,25 @@ trait ClammyBodyParsers extends ClammyParserConfig {
 
   type ClamResponse = Either[ClamError, FileOk]
 
-  /**
-   * Mostly for convenience this. If you need a service for just scanning a file for infections, this is it.
-   */
-  def scanOnly(implicit ec: ExecutionContext): BodyParser[MultipartFormData[Future[ClamResponse]]] =
-    parse.using { request =>
-      multipartFormData(Multipart.handleFilePart {
-        case Multipart.FileInfo(partName, filename, contentType) =>
-          if (!scanDisabled) {
-            val socket = ClamSocket()
-            if (socket.isConnected) {
-              val clamav = new ClammyScan(socket)
-              clamav.clamScan(filename)
-            } else {
-              failedConnection(Done(Future.successful(Left(CouldNotConnect)), Input.EOF))
-            }
-          }
-          else {
-            cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
-            Done(Future.successful(Right(FileOk())), Input.EOF)
-          }
-      })
-    }
-
-  def scan[A](fileIteratee: => Iteratee[Array[Byte], A], remove: A => Unit)(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], A)]] =
+  def scan[A](save: (String, Option[String]) => Iteratee[Array[Byte], A], remove: A => Unit)(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], A)]] =
     parse.using { request =>
       multipartFormData(Multipart.handleFilePart {
         case Multipart.FileInfo(partName, filename, contentType) =>
           if (fileNameValid(filename)) {
+            val fite = save(filename, contentType)
             if (!scanDisabled) {
               // Scan with clammy
               val socket = ClamSocket()
               if (socket.isConnected) {
                 val clamav = new ClammyScan(socket)
                 val cav = clamav.clamScan(filename)
-                Enumeratee.zip(cav, fileIteratee)
+                Enumeratee.zip(cav, fite)
               } else {
-                failedConnection(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), fileIteratee))
+                failedConnection(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), fite))
               }
             } else {
               cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
-              Enumeratee.zip(Done(Future.successful(Right(FileOk())), Input.EOF), fileIteratee)
+              Enumeratee.zip(Done(Future.successful(Right(FileOk())), Input.EOF), fite)
             }
           } else {
             cbpLogger.info(s"Filename $filename contains illegal characters")
@@ -91,8 +69,8 @@ trait ClammyBodyParsers extends ClammyParserConfig {
    */
   def scanWithTempFile(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], TemporaryFile)]] =
     scan[TemporaryFile](
-      fileIteratee = {
-        val tempFile = TemporaryFile("multipartBody", "asTemporaryFile")
+      save = { (fname, ctype) =>
+        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
         Iteratee.fold[Array[Byte], java.io.FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
           os.write(data)
           os
@@ -104,6 +82,15 @@ trait ClammyBodyParsers extends ClammyParserConfig {
       remove = { tmpFile =>
         tmpFile.file.delete()
       }
+    )
+
+  /**
+   * Mostly for convenience this. If you need a service for just scanning a file for infections, this is it.
+   */
+  def scanOnly(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], Unit)]] =
+    scan[Unit](
+      save = { (fname, ctype) => Done(()) },
+      remove = { _ => cbpLogger.debug("Only scanning, no file to remove") }
     )
 
   /**
