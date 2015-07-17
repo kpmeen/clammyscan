@@ -76,6 +76,7 @@ trait ClammyBodyParsers extends ClammyParserConfig {
           os
         }.map { os =>
           os.close()
+          tempFile.file.deleteOnExit()
           tempFile
         }
       },
