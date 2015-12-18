@@ -1,3 +1,6 @@
+import com.typesafe.sbt.SbtScalariform.ScalariformKeys
+import scalariform.formatter.preferences._
+
 name := """clammyscan"""
 
 version := "0.22-SNAPSHOT"
@@ -8,14 +11,24 @@ licenses +=("MIT", url("http://opensource.org/licenses/MIT"))
 
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8")
 
-scalacOptions ++= Seq("-deprecation", "-feature", "-language:higherKinds")
+scalacOptions ++= Seq(
+  "-deprecation",
+  "-feature",
+  "-language:higherKinds"
+)
+
 scalacOptions in Test ++= Seq("-Yrangepos")
 
 scalaVersion := "2.11.7"
 
 publishArtifact in Test := false
 
-bintraySettings
+scalariformSettings
+
+ScalariformKeys.preferences := ScalariformKeys.preferences.value
+  .setPreference(FormatXml, false)
+
+coverageExcludedPackages := "<empty>;*.ClamCommands.*;*.Messages.*"
 
 resolvers ++= Seq(
   "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
@@ -26,7 +39,7 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play" % "2.4.2" % "provided",
-  "com.typesafe.play" %% "play-test" % "2.4.2" % "test",
+  "com.typesafe.play" %% "play" % "2.4.6" % "provided",
+  "com.typesafe.play" %% "play-test" % "2.4.6" % "test",
   "org.specs2" %% "specs2-core" % "3.6.2" % "test"
 )

@@ -2,6 +2,7 @@ package net.scalytica.clammyscan
 
 import java.net.{ConnectException, URLDecoder}
 
+import net.scalytica.clammyscan.ClammyParserConfig._
 import play.api.Logger
 import play.api.libs.Files.TemporaryFile
 import play.api.libs.iteratee._
@@ -15,7 +16,7 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
  * Enables streaming upload of files/attachments with custom metadata to GridFS
  */
-trait ClammyBodyParsers extends ClammyParserConfig {
+trait ClammyBodyParsers {
   self: Controller =>
 
   val cbpLogger = Logger(classOf[ClammyBodyParsers])
@@ -24,7 +25,10 @@ trait ClammyBodyParsers extends ClammyParserConfig {
 
   type ClamResponse = Either[ClamError, FileOk]
 
-  def scan[A](save: (String, Option[String]) => Iteratee[Array[Byte], A], remove: A => Unit)(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], A)]] =
+  def scan[A](
+    save: (String, Option[String]) => Iteratee[Array[Byte], A],
+    remove: A => Unit
+  )(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], A)]] =
     parse.using { request =>
       multipartFormData(Multipart.handleFilePart {
         case Multipart.FileInfo(partName, filename, contentType) =>
@@ -70,19 +74,19 @@ trait ClammyBodyParsers extends ClammyParserConfig {
   def scanWithTempFile(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], TemporaryFile)]] =
     scan[TemporaryFile](
       save = { (fname, ctype) =>
-        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-        Iteratee.fold[Array[Byte], java.io.FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
-          os.write(data)
-          os
-        }.map { os =>
-          os.close()
-          tempFile.file.deleteOnExit()
-          tempFile
-        }
-      },
-      remove = { tmpFile =>
-        tmpFile.file.delete()
+      val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
+      Iteratee.fold[Array[Byte], java.io.FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
+        os.write(data)
+        os
+      }.map { os =>
+        os.close()
+        tempFile.file.deleteOnExit()
+        tempFile
       }
+    },
+      remove = { tmpFile =>
+      tmpFile.file.delete()
+    }
     )
 
   /**
@@ -97,7 +101,10 @@ trait ClammyBodyParsers extends ClammyParserConfig {
   /**
    * Function specifically for handling the ClamError cases in the validation step
    */
-  private def handleError[A](fud: MultipartFormData[(Future[ClamResponse], A)], err: ClamError)(onError: => Unit)(implicit ec: ExecutionContext) = {
+  private def handleError[A](
+    fud: MultipartFormData[(Future[ClamResponse], A)],
+    err: ClamError
+  )(onError: => Unit)(implicit ec: ExecutionContext) = {
     err match {
       case vf: VirusFound =>
         // We have encountered the dreaded VIRUS...run awaaaaay

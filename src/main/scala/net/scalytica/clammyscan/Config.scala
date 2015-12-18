@@ -14,12 +14,15 @@ trait ConfigKeys {
   val filenameRegex = "clammyscan.validFilenameRegex"
 }
 
-trait ClamConfig extends ConfigKeys {
+object ClamConfig extends ConfigKeys {
+
+  private val DefaultPortNumber = 3310
+  private val DefaultTimeout = 5000
 
   /*
   * IP address of clamd daemon. Defaults to localhost ("clamserver" if no play application is available)
   */
-  def host: String = {
+  lazy val host: String = {
     maybeApplication.map(_.configuration.getString(hostKey).getOrElse("localhost")).getOrElse {
       ConfigFactory.load.getString(hostKey)
     }
@@ -28,8 +31,8 @@ trait ClamConfig extends ConfigKeys {
   /**
    * port of clamd daemon. Defaults to 3310
    */
-  def port: Int = {
-    maybeApplication.map(_.configuration.getInt(portKey).getOrElse(3310)).getOrElse {
+  lazy val port: Int = {
+    maybeApplication.map(_.configuration.getInt(portKey).getOrElse(DefaultPortNumber)).getOrElse {
       ConfigFactory.load.getInt(portKey)
     }
   }
@@ -37,19 +40,19 @@ trait ClamConfig extends ConfigKeys {
   /**
    * Socket timeout for clam. Defaults to 5 seconds when running in a play application (otherwise default is 0).
    */
-  def timeout: Int = {
-    maybeApplication.map(_.configuration.getInt(timeoutKey).getOrElse(5000)).getOrElse {
+  lazy val timeout: Int = {
+    maybeApplication.map(_.configuration.getInt(timeoutKey).getOrElse(DefaultTimeout)).getOrElse {
       ConfigFactory.load.getInt(timeoutKey)
     }
   }
 }
 
-trait ClammyParserConfig extends ConfigKeys {
+object ClammyParserConfig extends ConfigKeys {
 
   /**
    * Remove file if it is infected... defaults value is true
    */
-  def canRemoveInfectedFiles: Boolean = {
+  lazy val canRemoveInfectedFiles: Boolean = {
     maybeApplication.map(_.configuration.getBoolean(removeInfectedKey).getOrElse(true)).getOrElse {
       ConfigFactory.load.getBoolean(removeInfectedKey)
     }
@@ -58,7 +61,7 @@ trait ClammyParserConfig extends ConfigKeys {
   /**
    * Whether or not to cause the body parser to stop uploading if we cannot connect to clamd... defaults to false
    */
-  def shouldFailOnError: Boolean = {
+  lazy val shouldFailOnError: Boolean = {
     maybeApplication.map(_.configuration.getBoolean(failOnErrorKey).getOrElse(false)).getOrElse {
       ConfigFactory.load.getBoolean(failOnErrorKey)
     }
@@ -68,7 +71,7 @@ trait ClammyParserConfig extends ConfigKeys {
    * Remove file if an error occurred during scanning... defaults to true,
    * but will be overridden and set to false if shouldFailOnError = false
    */
-  def canRemoveOnError: Boolean = {
+  lazy val canRemoveOnError: Boolean = {
     if (shouldFailOnError) {
       false
     } else {
@@ -81,7 +84,7 @@ trait ClammyParserConfig extends ConfigKeys {
   /**
    * Disables all virus scanning... defaults to false
    */
-  def scanDisabled: Boolean = {
+  lazy val scanDisabled: Boolean = {
     maybeApplication.map(_.configuration.getBoolean(disabled).getOrElse(false)).getOrElse {
       ConfigFactory.load.getBoolean(disabled)
     }
@@ -94,7 +97,7 @@ trait ClammyParserConfig extends ConfigKeys {
    * </code>
    *
    */
-  def validFilenameRegex: Option[String] = {
+  lazy val validFilenameRegex: Option[String] = {
     maybeApplication.map(_.configuration.getString(filenameRegex)).getOrElse {
       Option(ConfigFactory.load.getString(filenameRegex))
     }

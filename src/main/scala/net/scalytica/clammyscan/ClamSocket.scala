@@ -25,6 +25,7 @@ class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
 
   /**
    * Configures and initialises a new TCP Socket connection to clamd...
+   *
    * @return a new and connected Socket to clamd
    */
   private def connect(): Option[Socket] = {
@@ -74,8 +75,7 @@ class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
 
       // Consume the response stream from clamav using an enumerator...
       val virusInformation = Enumerator.fromStream(in) run Iteratee.fold[Array[Byte], String]("") {
-        case (s: String, bytes: Array[Byte]) =>
-          s"$s${new String(bytes)}"
+        case (s: String, bytes: Array[Byte]) => s"$s${new String(bytes)}"
       }
 
       virusInformation.flatMap(vis => {
@@ -100,6 +100,6 @@ class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
 
 }
 
-object ClamSocket extends ClamConfig {
-  def apply() = new ClamSocket(host, port, timeout)
+object ClamSocket {
+  def apply(): ClamSocket = new ClamSocket(ClamConfig.host, ClamConfig.port, ClamConfig.timeout)
 }

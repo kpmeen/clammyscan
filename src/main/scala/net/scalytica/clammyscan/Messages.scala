@@ -1,6 +1,5 @@
 package net.scalytica.clammyscan
 
-
 abstract class ClamError {
   val message: String
   val isVirus: Boolean

@@ -1,6 +1,5 @@
 package net.scalytica.clammyscan
 
-
 trait ClamCommands {
 
   val instream = "zINSTREAM\u0000".getBytes

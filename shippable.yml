@@ -11,9 +11,11 @@ jdk:
 # start clamav
 install: /bootstrap.sh
 
+- secure: DW9i5AoLLRyIR+A35dRB/Rbf0yz91x2fBnvaNEINzzE7dl8xGFDxrtKjhNE0S4YYPL9+mMZ4HtYGcBsHmNGbEqhFn9RMNbVDc/nulemwvIDUAYNcBNQZA7EbNkt6mbUOTXOI2LTv//cjERPUz/neFd0pr4jfORqTBWeRZC78aeLS82NXgjMItYdD9a17BPRwIjq2U00oKlJeL65YAyPY9lcDg/TRV9MCHwHkxnidXMCaQ6a44lW1pEBadIgjkDrE6tdpK9du/JQLbhuUSW1S9iMCbDzJHt3dzM+W1u1xOTsDwm6CuycdgwaOeUnlgP+5Z7X2xrY7uIWSyFeGeUOJFg==
+
 # run tests...
 script:
-- sbt clean coverage test
+- sbt clean coverage test codacyCoverage
 
 # Make coverage report available
 after_script:
