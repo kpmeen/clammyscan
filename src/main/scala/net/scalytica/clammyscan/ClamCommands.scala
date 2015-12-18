@@ -1,6 +1,6 @@
 package net.scalytica.clammyscan
 
-trait ClamCommands {
+object ClamCommands {
 
   val instream = "zINSTREAM\u0000".getBytes
   val ping = "zPING\u0000".getBytes

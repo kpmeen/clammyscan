@@ -12,7 +12,7 @@ import scala.util.Try
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
+class ClamSocket(host: String, port: Int, timeout: Int) {
 
   val logger = Logger(this.getClass)
 
@@ -39,19 +39,15 @@ class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
       Some(theSocket)
     } recover {
       case e: Throwable =>
-        if (logger.isDebugEnabled) {
-          logger.error("Could not connect to clamd!", e)
-        } else {
-          logger.error("Could not connect to clamd!")
-        }
+        logger.error("Could not connect to clamd!")
         None
-    }).get
+    }).toOption.flatten
   }
 
   private def start() {
     if (isConnected) {
       // Send the INSTREAM command to clamd...which indicates it should expect a new input stream
-      out.write(instream)
+      out.write(ClamCommands.instream)
     }
   }
 

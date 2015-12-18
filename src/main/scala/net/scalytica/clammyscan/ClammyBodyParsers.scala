@@ -21,7 +21,7 @@ trait ClammyBodyParsers {
 
   val cbpLogger = Logger(classOf[ClammyBodyParsers])
 
-  private val CouldNotConnect = ScanError("Could not connect to clamd")
+  private val couldNotConnect = ScanError("Could not connect to clamd")
 
   type ClamResponse = Either[ClamError, FileOk]
 
@@ -42,7 +42,7 @@ trait ClammyBodyParsers {
                 val cav = clamav.clamScan(filename)
                 Enumeratee.zip(cav, fite)
               } else {
-                failedConnection(Enumeratee.zip(Done(Future.successful(Left(CouldNotConnect)), Input.EOF), fite))
+                failedConnection(Enumeratee.zip(Done(Future.successful(Left(couldNotConnect)), Input.EOF), fite))
               }
             } else {
               cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
@@ -129,7 +129,7 @@ trait ClammyBodyParsers {
    */
   @throws(classOf[ConnectException])
   private def failedConnection[A, B](a: Iteratee[A, B]): Iteratee[A, B] = {
-    if (!shouldFailOnError) a else throw new ConnectException(CouldNotConnect.message)
+    if (!shouldFailOnError) a else throw new ConnectException(couldNotConnect.message)
   }
 
   /**

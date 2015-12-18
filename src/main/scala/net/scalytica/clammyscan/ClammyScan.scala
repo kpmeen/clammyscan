@@ -8,11 +8,11 @@ import scala.concurrent._
 /**
  * Allows scanning of file streams for viruses using a clamd over TCP.
  */
-class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
+class ClammyScan(clamSocket: ClamSocket) {
 
   val logger = Logger(this.getClass)
 
-  private val DefaultChunkSize = 262144
+  private val defaultChunkSize = 262144
 
   private def connectionError(filename: String) =
     s"Failed to scan $filename with clamd because of a connection error. Most likely because size limit was exceeded."
@@ -24,7 +24,7 @@ class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
    */
   def clamScan(
     filename: String,
-    chunkSize: Int = DefaultChunkSize
+    chunkSize: Int = defaultChunkSize
   )(implicit ec: ExecutionContext): Iteratee[Array[Byte], Future[Either[ClamError, FileOk]]] = {
     logger.info(s"Preparing to scan file $filename with clamd...")
 
@@ -96,7 +96,7 @@ class ClammyScan(clamSocket: ClamSocket) extends ClamCommands {
       val waitStart = System.currentTimeMillis()
 
       clamSocket.clamResponse.flatMap[Either[ClamError, FileOk]](res => {
-        if (okResponse.equals(res)) {
+        if (ClamCommands.okResponse.equals(res)) {
           logger.info(s"No viruses found in $filename")
           clamSocket.terminate()
           Future.successful(Right(FileOk()))
