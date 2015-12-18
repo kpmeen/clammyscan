@@ -30,7 +30,7 @@ ScalariformKeys.preferences := ScalariformKeys.preferences.value
   .setPreference(SpacesAroundMultiImports, false)
   .setPreference(DoubleIndentClassDeclaration, false)
 
-coverageExcludedPackages := "<empty>;*.ClamCommands.*;*.Messages.*"
+coverageExcludedPackages := "<empty>;Messages.*;ClamCommands"
 
 resolvers ++= Seq(
   "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
