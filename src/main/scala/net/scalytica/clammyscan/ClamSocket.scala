@@ -6,6 +6,8 @@ import java.net.{InetSocketAddress, Socket}
 import play.api.Logger
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 
+import scala.util.Try
+
 // TODO: Use a different execution context?
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -30,12 +32,12 @@ class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
    */
   private def connect(): Option[Socket] = {
     logger.info(s"Using config values: host=$host, port=$port, timeout=$timeout")
-    try {
+    (Try {
       val theSocket = new Socket
       theSocket.setSoTimeout(timeout)
       theSocket.connect(new InetSocketAddress(host, port))
       Some(theSocket)
-    } catch {
+    } recover {
       case e: Throwable =>
         if (logger.isDebugEnabled) {
           logger.error("Could not connect to clamd!", e)
@@ -43,7 +45,7 @@ class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
           logger.error("Could not connect to clamd!")
         }
         None
-    }
+    }).get
   }
 
   private def start() {
@@ -92,7 +94,7 @@ class ClamSocket(host: String, port: Int, timeout: Int) extends ClamCommands {
    */
   def terminate() {
     if (isConnected) {
-      socket.get.close()
+      socket.foreach(_.close())
       out.close()
       logger.info("TCP socket to clamd is now closed")
     }
