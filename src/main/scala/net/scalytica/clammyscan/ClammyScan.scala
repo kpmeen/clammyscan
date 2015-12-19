@@ -10,7 +10,7 @@ import scala.concurrent._
  */
 class ClammyScan(clamSocket: ClamSocket) {
 
-  val logger = Logger(this.getClass)
+  private val logger = Logger(this.getClass)
 
   private val defaultChunkSize = 262144
 
@@ -114,16 +114,9 @@ class ClammyScan(clamSocket: ClamSocket) {
    * Concatenate two arrays with each other...
    */
   private def concat[T](a1: Array[T], a2: Array[T])(implicit m: Manifest[T]): Array[T] = {
-    var i, j = 0
     val result = new Array[T](a1.length + a2.length)
-    while (i < a1.length) {
-      result(i) = a1(i)
-      i = i + 1
-    }
-    while (j < a2.length) {
-      result(i + j) = a2(j)
-      j = j + 1
-    }
+    for (i <- a1.indices) result(i) = a1(i)
+    for (j <- a2.indices) result(a1.length + j) = a2(j)
     result
   }
 

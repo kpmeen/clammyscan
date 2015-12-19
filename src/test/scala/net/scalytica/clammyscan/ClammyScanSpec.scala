@@ -18,7 +18,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class ClammyScanSpec extends Specification with FutureMatchers {
 
   "Sending the EICAR string as a stream to ClamAV" should {
-    "result in clamav finding a virus" in new scanFile {
+    "result in clamav finding a virus" in new ScanFileScope {
       val clamav = new ClammyScan(ClamSocket())
 
       val eicarEnumerator = Enumerator.fromStream(new ByteArrayInputStream(eicarString.getBytes))
@@ -39,7 +39,7 @@ class ClammyScanSpec extends Specification with FutureMatchers {
   }
 
   "Sending a clean file as a stream to ClamAV" should {
-    "result in a successful scan without errors" in new scanFile("clean.pdf") {
+    "result in a successful scan without errors" in new ScanFileScope("clean.pdf") {
       val clamav = new ClammyScan(ClamSocket())
 
       val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
@@ -53,7 +53,7 @@ class ClammyScanSpec extends Specification with FutureMatchers {
   }
 
   "Sending a file stream containing the EICAR string to ClamAV" should {
-    "result in a clamav finding a virus" in new scanFile("eicarcom2.zip") {
+    "result in a clamav finding a virus" in new ScanFileScope("eicarcom2.zip") {
       val clamav = new ClammyScan(ClamSocket())
 
       val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
@@ -71,7 +71,7 @@ class ClammyScanSpec extends Specification with FutureMatchers {
     }
   }
 
-  class scanFile(fname: String = "nofile") extends Scope {
+  class ScanFileScope(fname: String = "nofile") extends Scope {
     val file = fname
 
     val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\u0000"

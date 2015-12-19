@@ -54,7 +54,7 @@ trait ClammyBodyParsers {
           }
       }).validateM(futureData => {
         val data = futureData
-        data.files.head.ref._1.flatMap {
+        data.files.headOption.map(hf => hf.ref._1.flatMap {
           case Left(err) =>
             // Ooops...there seems to be a problem with the clamd scan result.
             val maybeFile = data.files.headOption.map(_.ref._2)
@@ -64,6 +64,10 @@ trait ClammyBodyParsers {
           case Right(ok) =>
             // It's all good...
             Future.successful(Right(futureData))
+        }).getOrElse {
+          Future.successful {
+            Left(InternalServerError(Json.obj("message" -> "Unable to locate any files after scan result")))
+          }
         }
       })
     }
@@ -74,19 +78,19 @@ trait ClammyBodyParsers {
   def scanWithTempFile(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], TemporaryFile)]] =
     scan[TemporaryFile](
       save = { (fname, ctype) =>
-      val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-      Iteratee.fold[Array[Byte], java.io.FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
-        os.write(data)
-        os
-      }.map { os =>
-        os.close()
-        tempFile.file.deleteOnExit()
-        tempFile
-      }
-    },
+        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
+        Iteratee.fold[Array[Byte], java.io.FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
+          os.write(data)
+          os
+        }.map { os =>
+          os.close()
+          tempFile.file.deleteOnExit()
+          tempFile
+        }
+      },
       remove = { tmpFile =>
-      tmpFile.file.delete()
-    }
+        tmpFile.file.delete()
+      }
     )
 
   /**
