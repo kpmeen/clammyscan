@@ -1,13 +1,15 @@
 [![License](http://img.shields.io/:license-mit-blue.svg)](http://scalytica.mit-license.org)
 [![Build Status](https://api.shippable.com/projects/54971a6ad46935d5fbc0c29f/badge?branchName=master)](https://app.shippable.com/projects/54971a6ad46935d5fbc0c29f/builds/latest)   [![Join the chat at https://gitter.im/scalytica/clammyscan](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scalytica/clammyscan?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-**_Currently undergoing some major changes!_**
-
 # ClammyScan
 
-There isn't really all that much to it. ClammyScan implements its own BodyParser, that can scan incoming files with clamd (over TCP using INSTREAM). If the file contains a virus or is otherwise infected, a HTTP NotAcceptable is returned with a message explaining why. If the file is OK, the Controller will have the file part available for further processing in the request.
+ClammyScan largely consists of a trait defining a few `BodyParser`s. These are made that incoming files can be scanned with clamd (over TCP using INSTREAM). If the file contains a virus or is otherwise infected, a HTTP NotAcceptable is returned with a message explaining why. If the file is OK, the Controller will have the file part available for further processing in the request.
 
-### Installation
+### Why?
+AV scanning is handled by some service running on the machine where files are stored. Files are typically scanned _after_ they've been persisted, and often services that process these files write metadata and location references to a DB. If the AV service should detect an infected file, this file will mostly be put in a quarantine of some sort while the service itself is unaware of what happened. The DB all of a sudden contains broken references. With ClammyScan this can be avoided since the file is scanned while it's being uploaded. Users uploading infected files will be notified about the infected files when they are discovered, instead of wondering why the file can't be found.
+
+
+## Usage
 
 Add the following repository to your build.sbt file:
 
@@ -17,11 +19,15 @@ resolvers += "JCenter" at "http://jcenter.bintray.com/"
 And the dependency for the ClammyScan library:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "0.20"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "0.22"
 ```
 
-### Configuration
+## Configuration
 
+### ClamAV configuration
+Please refer to the official ClamAV documentation.
+
+### ClammyScan configuration
 ClammyScan has some configurable parameters. At the moment the configurable parameters are as follows, and should be located in the application.conf file:
 
 ```bash
@@ -49,10 +55,14 @@ clammyscan {
 
 The properties should be fairly self-explanatory.
 
-### Usage
+## Available BodyParsers
 
- ```scanOnly```is a convenience that just scans your input stream and returns a result without persisting the file in any way. ```scanAndParseAsTempFile``` will, as the name implies, create a temp file available for later processing in the controller.
+* `scan` takes two arguments. A function for saving the file content in parallel with the AV scan. And a function for handling removal of the file in case it is infected. This is the most powerful of the available `BodyParser`s.
 
-### Building and Testing
+* `scanOnly`is a convenience that just scans your input stream and returns a result without persisting the file in any way. 
+ 
+* `scanAndParseAsTempFile` will, as the name implies, create a temp file available for later processing in the controller.
 
-Currently the tests depend on the presence of a clamd instance running. For local testing, change the configuration in conf/application.conf to point to a running installation.
+## Building and Testing
+
+Currently the tests depend on the presence of a clamd instance running. For local testing, change the configuration in conf/application.conf to point to a running installation. The repository also contains a simple script that will start a Docker image containing ClamAV.
