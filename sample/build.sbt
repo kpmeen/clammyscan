@@ -20,7 +20,7 @@ libraryDependencies ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "net.scalytica" %% "clammyscan" % "0.22-SNAPSHOT",
+  "net.scalytica" %% "clammyscan" % "0.23-SNAPSHOT",
   "org.codehaus.janino" % "janino" % "2.7.6",
   "org.specs2" %% "specs2-core" % "3.6.2" % "test"
 )
