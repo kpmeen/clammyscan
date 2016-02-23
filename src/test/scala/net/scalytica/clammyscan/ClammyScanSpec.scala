@@ -19,7 +19,10 @@ class ClammyScanSpec extends Specification with FutureMatchers {
 
   "Sending the EICAR string as a stream to ClamAV" should {
     "result in clamav finding a virus" in new ScanFileScope {
-      val clamav = new ClammyScan(ClamSocket())
+      val clamSocket = ClamSocket()
+      clamSocket.socket aka "the ClamSocket" must_!= None
+
+      val clamav = new ClammyScan(clamSocket)
 
       val eicarEnumerator = Enumerator.fromStream(new ByteArrayInputStream(eicarString.getBytes))
 
@@ -28,7 +31,7 @@ class ClammyScanSpec extends Specification with FutureMatchers {
           case Left(err) => Future.successful {
             err match {
               case vf: VirusFound => success(s"Found a virus in this one... :-(")
-              case ce: ClamError => failure(s"Got the excepted ClamError result")
+              case ce: ClamError => failure(s"Unexpected ClamError result ${ce.message}")
             }
           }
           case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
@@ -40,7 +43,10 @@ class ClammyScanSpec extends Specification with FutureMatchers {
 
   "Sending a clean file as a stream to ClamAV" should {
     "result in a successful scan without errors" in new ScanFileScope("clean.pdf") {
-      val clamav = new ClammyScan(ClamSocket())
+      val clamSocket = ClamSocket()
+      clamSocket.socket aka "the ClamSocket" must_!= None
+
+      val clamav = new ClammyScan(clamSocket)
 
       val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
         eventuallyError.flatMap {
@@ -54,14 +60,17 @@ class ClammyScanSpec extends Specification with FutureMatchers {
 
   "Sending a file stream containing the EICAR string to ClamAV" should {
     "result in a clamav finding a virus" in new ScanFileScope("eicarcom2.zip") {
-      val clamav = new ClammyScan(ClamSocket())
+      val clamSocket = ClamSocket()
+      clamSocket.socket aka "the ClamSocket" must_!= None
+
+      val clamav = new ClammyScan(clamSocket)
 
       val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
         eventuallyError.flatMap {
           case Left(err) => Future.successful {
             err match {
               case vf: VirusFound => success(s"Found a virus in this one... :-(")
-              case ce: ClamError => failure(s"Got the excepted ClamError result")
+              case ce: ClamError => failure(s"Unexpected ClamError result ${ce.message}")
             }
           }
           case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))

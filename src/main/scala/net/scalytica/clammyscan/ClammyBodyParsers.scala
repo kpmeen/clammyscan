@@ -78,19 +78,19 @@ trait ClammyBodyParsers {
   def scanWithTempFile(implicit ec: ExecutionContext): BodyParser[MultipartFormData[(Future[ClamResponse], TemporaryFile)]] =
     scan[TemporaryFile](
       save = { (fname, ctype) =>
-        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-        Iteratee.fold[Array[Byte], java.io.FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
-          os.write(data)
-          os
-        }.map { os =>
-          os.close()
-          tempFile.file.deleteOnExit()
-          tempFile
-        }
-      },
-      remove = { tmpFile =>
-        tmpFile.file.delete()
+      val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
+      Iteratee.fold[Array[Byte], java.io.FileOutputStream](new java.io.FileOutputStream(tempFile.file)) { (os, data) =>
+        os.write(data)
+        os
+      }.map { os =>
+        os.close()
+        tempFile.file.deleteOnExit()
+        tempFile
       }
+    },
+      remove = { tmpFile =>
+      tmpFile.file.delete()
+    }
     )
 
   /**
