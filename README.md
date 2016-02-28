@@ -1,5 +1,4 @@
-[![License](http://img.shields.io/:license-mit-blue.svg)](http://scalytica.mit-license.org)
-[![Build Status](https://api.shippable.com/projects/54971a6ad46935d5fbc0c29f/badge?branchName=master)](https://app.shippable.com/projects/54971a6ad46935d5fbc0c29f/builds/latest)   [![Join the chat at https://gitter.im/scalytica/clammyscan](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scalytica/clammyscan?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join the chat at https://gitter.im/scalytica/clammyscan](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scalytica/clammyscan?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Codacy Badge](https://api.codacy.com/project/badge/grade/4a510cbec8f04bccb849793b5b1c981a)](https://www.codacy.com/app/kp/clammyscan) [![Codacy Badge](https://api.codacy.com/project/badge/coverage/4a510cbec8f04bccb849793b5b1c981a)](https://www.codacy.com/app/kp/clammyscan) [![Build Status](https://img.shields.io/shippable/54971a6ad46935d5fbc0c29f.svg)](https://app.shippable.com/projects/54971a6ad46935d5fbc0c29f/builds/latest)
 
 # ClammyScan
 
