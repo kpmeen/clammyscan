@@ -11,9 +11,9 @@ jdk:
 # start clamav
 install: /bootstrap.sh
 
-env:
-  global:
-    - secure: ujjb//TrebgFRWibElyF4rU76c1OYQc51k4y3GQVcXtuhi44BTqdva+vpU5L+PNISp1SotrElxWlS+901mGV3Sm+5qyHOssvNUDua2WqJUtThh7pIAlbfk+vQqq03Kmkga5OaXZvv0aIW/NtVg0GyFIoDnBk7U3T9r/tmKQPFYqfoMIRBhKnu96bYtUJ8/hW1VagY0b4GbGIFlOE+6glVdDnGbEdtUxIuR2Ti3pB3JAoYVw0Egxx/KVX13Ji30nypeHPxWT86V/LEG7JTurSOfj5wciwJNaEMuezXXDC8bfs3QartpaQ8aTAnmN0mi/VbdMpBzEyUbvf8JM2FIcwcg==
+#env:
+#  global:
+#    - secure: ujjb//TrebgFRWibElyF4rU76c1OYQc51k4y3GQVcXtuhi44BTqdva+vpU5L+PNISp1SotrElxWlS+901mGV3Sm+5qyHOssvNUDua2WqJUtThh7pIAlbfk+vQqq03Kmkga5OaXZvv0aIW/NtVg0GyFIoDnBk7U3T9r/tmKQPFYqfoMIRBhKnu96bYtUJ8/hW1VagY0b4GbGIFlOE+6glVdDnGbEdtUxIuR2Ti3pB3JAoYVw0Egxx/KVX13Ji30nypeHPxWT86V/LEG7JTurSOfj5wciwJNaEMuezXXDC8bfs3QartpaQ8aTAnmN0mi/VbdMpBzEyUbvf8JM2FIcwcg==
 
 # run tests...
 script:
