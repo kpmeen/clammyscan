@@ -1,16 +1,16 @@
 <configuration>
 
-    <conversionRule conversionWord="coloredLevel" converterClass="play.api.Logger$ColoredLevel"/>
-
     <!-- Will append log message to the standard out -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%coloredLevel %logger{15} - %message%n%xException{5}</pattern>
+            <pattern>
+                %level %logger{15} - %message%n%xException{5}
+            </pattern>
         </encoder>
     </appender>
 
     <logger name="net.scalytica.clammyscan" level="INFO" additivity="false">
-        <appender-ref ref="STDOUT" />
+        <appender-ref ref="STDOUT"/>
     </logger>
 
     <!-- Root loggers catch all other events that are not explicitly handled-->

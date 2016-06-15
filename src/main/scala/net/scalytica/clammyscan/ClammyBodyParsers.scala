@@ -100,17 +100,17 @@ trait ClammyBodyParsers {
   ): ClamParser[TemporaryFile] =
     scan[TemporaryFile](
       save = { (fname, ctype) =>
-        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-        val fout = new java.io.FileOutputStream(tempFile.file)
-        Iteratee.fold[Array[Byte], java.io.FileOutputStream](fout) { (os, data) =>
-          os.write(data)
-          os
-        }.map { os =>
-          os.close()
-          tempFile.file.deleteOnExit()
-          tempFile
-        }
-      },
+      val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
+      val fout = new java.io.FileOutputStream(tempFile.file)
+      Iteratee.fold[Array[Byte], java.io.FileOutputStream](fout) { (os, data) =>
+        os.write(data)
+        os
+      }.map { os =>
+        os.close()
+        tempFile.file.deleteOnExit()
+        tempFile
+      }
+    },
       remove = tmpFile => tmpFile.file.delete()
     )
 

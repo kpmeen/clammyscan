@@ -39,7 +39,7 @@ resolvers ++= Seq(
   Resolver.bintrayRepo("scalaz", "releases")
 )
 
-val playVersion = "2.5.3"
+val playVersion = "2.5.4"
 val akkaVersion = "2.4.4"
 val specs2Version = "3.8.3"
 
