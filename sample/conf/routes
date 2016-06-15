@@ -2,5 +2,5 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-POST        /scan                                                 controllers.Application.scanFile
-POST        /scanTemp                                             controllers.Application.scanTempFile
+POST        /scan       controllers.Application.scanFile
+POST        /scanTemp   controllers.Application.scanTempFile
