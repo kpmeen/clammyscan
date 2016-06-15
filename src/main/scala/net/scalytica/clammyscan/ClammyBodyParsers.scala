@@ -1,6 +1,7 @@
 package net.scalytica.clammyscan
 
-import java.net.{ConnectException, URLDecoder}
+import java.net.ConnectException
+import java.net.URLDecoder.decode
 
 import akka.util.ByteString
 import net.scalytica.clammyscan.ClammyParserConfig._
@@ -23,7 +24,7 @@ trait ClammyBodyParsers {
 
   val cbpLogger = Logger(classOf[ClammyBodyParsers])
 
-  private val CouldNotConnect = ScanError("Could not connect to clamd")
+  private val couldNotConnect = ScanError("Could not connect to clamd")
 
   private[this] def scanDone(
     fcr: Future[ClamResponse]
@@ -48,7 +49,7 @@ trait ClammyBodyParsers {
                 Enumeratee.zip(cav, fite)
               } else {
                 failedConnection(Enumeratee.zip(
-                  scanDone(Future.successful(Left(CouldNotConnect))),
+                  scanDone(Future.successful(Left(couldNotConnect))),
                   fite
                 ))
               }
@@ -100,17 +101,17 @@ trait ClammyBodyParsers {
   ): ClamParser[TemporaryFile] =
     scan[TemporaryFile](
       save = { (fname, ctype) =>
-      val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-      val fout = new java.io.FileOutputStream(tempFile.file)
-      Iteratee.fold[Array[Byte], java.io.FileOutputStream](fout) { (os, data) =>
-        os.write(data)
-        os
-      }.map { os =>
-        os.close()
-        tempFile.file.deleteOnExit()
-        tempFile
-      }
-    },
+        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
+        val fout = new java.io.FileOutputStream(tempFile.file)
+        Iteratee.fold[Array[Byte], java.io.FileOutputStream](fout) { (os, data) =>
+          os.write(data)
+          os
+        }.map { os =>
+          os.close()
+          tempFile.file.deleteOnExit()
+          tempFile
+        }
+      },
       remove = tmpFile => tmpFile.file.delete()
     )
 
@@ -159,14 +160,13 @@ trait ClammyBodyParsers {
   @throws(classOf[ConnectException])
   private def failedConnection[A, B](a: Iteratee[A, B]): Iteratee[A, B] = {
     if (!shouldFailOnError) a
-    else throw new ConnectException(CouldNotConnect.message)
+    else throw new ConnectException(couldNotConnect.message)
   }
 
   /**
    * Will validate the filename based on the configured regular expression defined in application.conf.
    */
   private def fileNameValid(filename: String): Boolean = {
-    import URLDecoder.decode
     validFilenameRegex.forall(regex =>
       regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
         case Some(m) => false

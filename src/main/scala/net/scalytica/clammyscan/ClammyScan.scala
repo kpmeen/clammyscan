@@ -12,7 +12,7 @@ class ClammyScan(clamSocket: ClamSocket) {
 
   private val logger = Logger(this.getClass)
 
-  private val DefaultChunkSize = 262144
+  private val defaultChunkSize = 262144
 
   private def connectionError(filename: String) =
     s"Failed to scan $filename with clamd because of a connection error. " +
@@ -27,7 +27,7 @@ class ClammyScan(clamSocket: ClamSocket) {
    */
   def clamScan(
     filename: String,
-    chunkSize: Int = DefaultChunkSize
+    chunkSize: Int = defaultChunkSize
   )(
     implicit
     ec: ExecutionContext
