@@ -24,6 +24,7 @@ build:
     - sbt clean coverage test coverageReport codacyCoverage
 
   post_ci:
+    # Prepare for exporting coverage report to codacy
     - mkdir -p shippable/codecoverage
     - mv target/scala-2.11/coverage-report/cobertura.xml $PWD/shippable/codecoverage/
 
