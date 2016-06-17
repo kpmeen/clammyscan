@@ -1,7 +1,6 @@
 package net.scalytica
 
-import akka.NotUsed
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import play.api.mvc.{BodyParser, MultipartFormData}
 
@@ -10,11 +9,10 @@ import scala.concurrent.Future
 package object clammyscan {
 
   type ClamResponse = Either[ClamError, FileOk]
-  type MergedResponse[A] = (ClamResponse, A)
-  type ClamFlow = Flow[ByteString, ClamResponse, NotUsed]
-  type SaveFlow[A] = Flow[ByteString, A, NotUsed]
-  type MergedFlow[A] = Flow[ByteString, (ClamResponse, A), NotUsed]
+  type TupledResponse[A] = (Future[ClamResponse], Option[A])
+  type ClamSink = Sink[ByteString, Future[ClamResponse]]
+  type SaveSink[A] = Sink[ByteString, Option[A]]
 
-  type ClamParser[A] = BodyParser[MultipartFormData[(Future[ClamResponse], A)]]
+  type ClamParser[A] = BodyParser[MultipartFormData[TupledResponse[A]]]
 
 }
