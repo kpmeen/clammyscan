@@ -3,6 +3,8 @@ package net.scalytica.clammyscan
 import com.typesafe.config.ConfigFactory
 import play.api.Play._
 
+import scala.concurrent.duration.{Duration, _}
+
 trait ConfigKeys {
   val hostKey = "clammyscan.clamd.host"
   val portKey = "clammyscan.clamd.port"
@@ -45,6 +47,8 @@ object ClamConfig extends ConfigKeys {
       ConfigFactory.load.getInt(timeoutKey)
     }
   }
+
+  lazy val timeoutDuration: Duration = 5 seconds
 }
 
 object ClammyParserConfig extends ConfigKeys {

@@ -1,6 +1,7 @@
 <configuration>
 
-    <conversionRule conversionWord="coloredLevel" converterClass="play.api.Logger$ColoredLevel"/>
+    <conversionRule conversionWord="coloredLevel"
+                    converterClass="play.api.libs.logback.ColoredLevel"/>
 
     <!-- Will append log message to the standard out -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
@@ -9,8 +10,13 @@
         </encoder>
     </appender>
 
-    <logger name="security.clamav" level="INFO" additivity="false">
-        <appender-ref ref="STDOUT" />
+    <logger name="play" level="INFO"/>
+    <logger name="application" level="INFO"/>
+    <logger name="controllers" level="INFO"/>
+    <logger name="akka" level="INFO" />
+
+    <logger name="net.scalytica.clammyscan" level="DEBUG">
+        <appender-ref ref="STDOUT"/>
     </logger>
 
     <!-- Root loggers catch all other events that are not explicitly handled-->

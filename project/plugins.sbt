@@ -1,11 +1,9 @@
 logLevel := Level.Warn
 
-resolvers += Resolver.url(
-  name = "bintray-sbt-plugin-releases",
-  baseURL = url("http://dl.bintray.com/content/sbt/sbt-plugin-releases")
-)(Resolver.ivyStylePatterns)
-
-resolvers += "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/"
+resolvers ++= Seq(
+  Resolver.bintrayIvyRepo("sbt", "sbt-plugin-releases"),
+  Resolver.typesafeRepo("releases")
+)
 
 addSbtPlugin("me.lessis" %% "bintray-sbt" % "0.3.0")
 addSbtPlugin("org.scoverage" %% "sbt-scoverage" % "1.3.5")

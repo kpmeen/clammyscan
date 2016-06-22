@@ -10,15 +10,20 @@ routesGenerator := InjectedRoutesGenerator
 
 scalacOptions ++= Seq("-feature", "-language:postfixOps", "-language:higherKinds")
 
-javaOptions in Test ++= Seq("-Dlogger.file=test/resources/logback-test.xml")
-
 libraryDependencies ++= Seq(
   cache,
   ws
 )
 
+val logbackVersion = "1.1.7"
+val slf4jVersion = "1.7.21"
+
 libraryDependencies ++= Seq(
-  "net.scalytica" %% "clammyscan" % "0.23-SNAPSHOT"
+  "net.scalytica" %% "clammyscan" % "0.23-SNAPSHOT",
+  // Logging
+  "org.slf4j" % "slf4j-api" % slf4jVersion,
+  "ch.qos.logback" % "logback-core" % logbackVersion,
+  "ch.qos.logback" % "logback-classic" % logbackVersion
 )
 
 resolvers ++= Seq(

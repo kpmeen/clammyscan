@@ -1,96 +1,90 @@
-package net.scalytica.clammyscan
-
-import java.io.ByteArrayInputStream
-import java.util.concurrent.TimeUnit
-
-import org.specs2.execute._
-import org.specs2.matcher.FutureMatchers
-import org.specs2.mutable.Specification
-import org.specs2.specification.Scope
-import play.api.libs.iteratee._
-
-import scala.concurrent._
-import scala.concurrent.duration._
-import scala.util.{Left, Right}
-
-import scala.concurrent.ExecutionContext.Implicits.global
-
-class ClammyScanSpec extends Specification with FutureMatchers {
-
-  "Sending the EICAR string as a stream to ClamAV" should {
-    "result in clamav finding a virus" in new ScanFileScope {
-      val clamSocket = ClamSocket()
-      clamSocket.socket aka "the ClamSocket" must_!= None
-
-      val clamav = new ClammyScan(clamSocket)
-
-      val eicarEnumerator = Enumerator.fromStream(new ByteArrayInputStream(eicarString.getBytes))
-
-      val result = (eicarEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
-        eventuallyError.flatMap {
-          case Left(err) => Future.successful {
-            err match {
-              case vf: VirusFound => success(s"Found a virus in this one... :-(")
-              case ce: ClamError => failure(s"Unexpected ClamError result ${ce.message}")
-            }
-          }
-          case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
-        }
-      })
-      Await.result(result, Duration(3, TimeUnit.SECONDS))
-    }
-  }
-
-  "Sending a clean file as a stream to ClamAV" should {
-    "result in a successful scan without errors" in new ScanFileScope("clean.pdf") {
-      val clamSocket = ClamSocket()
-      clamSocket.socket aka "the ClamSocket" must_!= None
-
-      val clamav = new ClammyScan(clamSocket)
-
-      val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
-        eventuallyError.flatMap {
-          case Left(vf) => Future.successful(failure(s"Found a virus in this one... :-("))
-          case Right(fok) => Future.successful(success(s"Successful scan of clean file :-)"))
-        }
-      })
-      Await.result(result, Duration(2, TimeUnit.MINUTES))
-    }
-  }
-
-  "Sending a file stream containing the EICAR string to ClamAV" should {
-    "result in a clamav finding a virus" in new ScanFileScope("eicarcom2.zip") {
-      val clamSocket = ClamSocket()
-      clamSocket.socket aka "the ClamSocket" must_!= None
-
-      val clamav = new ClammyScan(clamSocket)
-
-      val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
-        eventuallyError.flatMap {
-          case Left(err) => Future.successful {
-            err match {
-              case vf: VirusFound => success(s"Found a virus in this one... :-(")
-              case ce: ClamError => failure(s"Unexpected ClamError result ${ce.message}")
-            }
-          }
-          case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
-        }
-      })
-      Await.result(result, Duration(2, TimeUnit.MINUTES))
-    }
-  }
-
-  class ScanFileScope(fname: String = "nofile") extends Scope {
-    val file = fname
-
-    val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\u0000"
-
-    val fileStream = this.getClass.getResourceAsStream(s"/$file")
-    val fileEnumerator = Enumerator.fromStream(fileStream)
-
-    fileEnumerator.onDoneEnumerating {
-      fileStream.close()
-    }
-  }
-
-}
+//package net.scalytica.clammyscan
+//
+//import java.io.File
+//
+//import akka.actor.ActorSystem
+//import akka.stream.scaladsl._
+//import akka.stream.{ActorMaterializer, IOResult}
+//import akka.util.ByteString
+//import net.scalytica.clammyscan.TestHelper.eicarString
+//import org.scalatest.{Assertion, AsyncWordSpec, BeforeAndAfterAll, Matchers}
+//
+//import scala.concurrent.ExecutionContext.Implicits.global
+//import scala.concurrent._
+//
+//class ClammyScanSpec extends AsyncWordSpec
+//  with Matchers
+//  with BeforeAndAfterAll {
+//
+//  implicit val system = ActorSystem("test-system")
+//  implicit val materializer = ActorMaterializer()
+//
+//  override def afterAll() = system.terminate() // scalastyle:ignore
+//
+//  def withFile(fname: String)(
+//    testCode: (File, Source[ByteString, Future[IOResult]]) => Future[Assertion]
+//  ): Future[Assertion] = {
+//    val file = new File(this.getClass.getResource(s"/$fname").toURI)
+//    val fio = FileIO.fromFile(file)
+//    testCode(file, fio)
+//  }
+//
+//  "Using ClammyScan" when {
+//
+//    "sending the EICAR string as a stream" should {
+//      "result in clamav finding a virus" in {
+//        val clamSocket = ClamSocket()
+//        clamSocket.socket should not be None
+//
+//        val clam = new ClammyScan(clamSocket)
+//        val bytes = ByteString(eicarString)
+//        val source = Source.single[ByteString](bytes)
+//        val clamSink = clam.sink("test-file")
+//
+//        source.runWith(clamSink).map { res =>
+//          res.isLeft shouldBe true
+//          res.left.get match {
+//            case vf: VirusFound => succeed
+//            case ce => fail(s"Unexpected ClamError result ${ce.message}")
+//          }
+//        }
+//      }
+//    }
+//
+//    "sending a clean file as a stream" should {
+//      "result in a successful scan without errors" in withFile("clean.pdf") {
+//        (file, source) =>
+//          val clamSocket = ClamSocket()
+//          clamSocket.socket should not be None
+//
+//          val clam = new ClammyScan(clamSocket)
+//          val clamSink = clam.sink("clean.pdf")
+//
+//          source.runWith(clamSink).map { res =>
+//            res.isRight shouldBe true
+//            res.right.get shouldBe FileOk()
+//          }
+//      }
+//    }
+//
+//    "sending a zip file containing the EICAR string as a stream" should {
+//      "result in a virus being found" in withFile("eicarcom2.zip") {
+//        (file, source) =>
+//          val clamSocket = ClamSocket()
+//          clamSocket.socket should not be None
+//
+//          val clam = new ClammyScan(clamSocket)
+//          val clamSink = clam.sink("eicarcom2.zip")
+//
+//          source.runWith(clamSink).map { res =>
+//            res.isLeft shouldBe true
+//            res.left.get match {
+//              case vf: VirusFound => succeed
+//              case ce => fail(s"Unexpected ClamError result ${ce.message}")
+//            }
+//          }
+//      }
+//    }
+//  }
+//
+//}
