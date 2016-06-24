@@ -13,7 +13,7 @@
     <logger name="play" level="INFO"/>
     <logger name="application" level="INFO"/>
     <logger name="controllers" level="INFO"/>
-    <logger name="akka" level="INFO" />
+    <logger name="akka" level="ERROR" />
 
     <logger name="net.scalytica.clammyscan" level="DEBUG">
         <appender-ref ref="STDOUT"/>

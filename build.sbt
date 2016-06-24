@@ -59,6 +59,8 @@ libraryDependencies ++= Seq(
   // Play!
   "com.typesafe.play" %% "play" % playVersion % "provided",
   "com.typesafe.play" %% "play-test" % playVersion % "test",
+  // Ficus config DSL
+  "com.iheart" %% "ficus" % "1.2.6",
   // Akka
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,

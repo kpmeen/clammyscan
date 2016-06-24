@@ -4,7 +4,7 @@ import akka.util.ByteString
 
 object UnsignedInt {
 
-  private[clammyscan] val Zero = unsignedInt(0)
+  private[clammyscan] val StreamCompleted = unsignedInt(0)
 
   /**
    * Helper function to convert an Int value to a ByteString representing

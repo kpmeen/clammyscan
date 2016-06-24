@@ -3,18 +3,20 @@ package controllers
 import javax.inject.Singleton
 
 import akka.actor.ActorSystem
+import akka.stream.Materializer
 import com.google.inject.Inject
-import net.scalytica.clammyscan.{ClammyBodyParsers, VirusFound}
+import net.scalytica.clammyscan.{ClammyScan, VirusFound}
 import play.api.Logger
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.Json
 import play.api.mvc._
 
 @Singleton
-class Application @Inject()(s: ActorSystem) extends Controller
-  with ClammyBodyParsers {
+class Application @Inject()(s: ActorSystem, m: Materializer) extends Controller
+  with ClammyScan {
 
-  val system = s
+  implicit val system = s
+  implicit val materializer = m
 
   val logger = Logger(this.getClass)
 
@@ -42,8 +44,20 @@ class Application @Inject()(s: ActorSystem) extends Controller
    * Scan with temp file
    */
   def scanTempFile = Action(scanWithTmpFile) { request =>
-    val fname = request.body.files.head.ref._2.get.file.getName
-    Ok(Json.obj("message" -> s"$fname uploaded successfully"))
+    request.body.files.headOption.map { f =>
+      val fname = f.ref._2.get.file.getName
+      f.ref._1 match {
+        case Left(err) =>
+          Ok(
+            Json.obj("message" -> s"$fname scan result was: ${err.message}")
+          )
+
+        case Right(fileOk) =>
+          Ok(Json.obj("message" -> s"$fname uploaded successfully"))
+      }
+    }.getOrElse {
+      BadRequest("could not find attached file")
+    }
   }
 
 }

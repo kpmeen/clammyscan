@@ -11,7 +11,7 @@ package object clammyscan {
   type ClamResponse = Either[ClamError, FileOk]
   type TupledResponse[A] = (ClamResponse, Option[A])
   type ClamSink = Sink[ByteString, Future[ClamResponse]]
-  type SaveSink[A] = Sink[ByteString, Option[A]]
+  type SaveSink[A] = Sink[ByteString, Future[Option[A]]]
   type ClamParser[A] = BodyParser[MultipartFormData[TupledResponse[A]]]
 
   private[clammyscan] val connectionError = (filename: String) =>
