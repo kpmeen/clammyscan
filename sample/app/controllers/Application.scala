@@ -5,7 +5,7 @@ import javax.inject.Singleton
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import com.google.inject.Inject
-import net.scalytica.clammyscan.{ClammyScan, VirusFound}
+import net.scalytica.clammyscan.{ClammyScanParser, VirusFound}
 import play.api.Logger
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.Json
@@ -13,7 +13,7 @@ import play.api.mvc._
 
 @Singleton
 class Application @Inject()(s: ActorSystem, m: Materializer) extends Controller
-  with ClammyScan {
+  with ClammyScanParser {
 
   implicit val system = s
   implicit val materializer = m

@@ -6,13 +6,13 @@ import akka.actor.ActorSystem
 import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
-import net.scalytica.clammyscan.ClamConfig._
-import play.api.Logger
+import com.google.inject.{Inject, Singleton}
 import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.Json
 import play.api.libs.streams.Accumulator
 import play.api.mvc.BodyParsers.parse._
 import play.api.mvc._
+import play.api.{Configuration, Logger}
 import play.core.parsers.Multipart.FileInfo
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -22,36 +22,68 @@ import scala.concurrent.{ExecutionContext, Future}
  */
 trait ClammyScan {
 
-  implicit val system: ActorSystem
-  implicit val materializer: Materializer
-
-  val cbpLogger = Logger(classOf[ClammyScan])
-
   /**
    *
-   * @param filename
+   * @param save
+   * @param remove
    * @param ec
+   * @tparam A
    * @return
+   */
+  def scan[A](
+    save: (String, Option[String]) => SaveSink[A],
+    remove: A => Unit
+  )(implicit ec: ExecutionContext): ClamParser[A]
+
+  /**
+   * Scans file for virus and buffers to a temporary file. Temp file is
+   * removed if file is infected.
+   */
+  def scanWithTmpFile(implicit e: ExecutionContext): ClamParser[TemporaryFile]
+
+  /**
+   * Mostly for convenience this. If you need a service for just scanning
+   * a file for infections, this is it.
+   */
+  def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit]
+
+}
+
+class ClammyScanParser @Inject() (
+  sys: ActorSystem,
+  mat: Materializer,
+  config: Configuration
+) extends ClammyScan {
+
+  implicit val system: ActorSystem = sys
+  implicit val materializer: Materializer = mat
+
+  val clamConf = new ClamConfig(config)
+
+  import clamConf._
+
+  val cbpLogger = Logger(classOf[ClammyScanParser])
+
+  /**
+   * Sets up a `ClamSink` that is ready to receive the incoming stream. Or one
+   * that is cancelled with success status.
+   *
+   * Controlled by the config property `clammyscan.scanDisabled`.
    */
   private[this] def clammySink(
     filename: String
   )(implicit ec: ExecutionContext) = {
     if (!scanDisabled) {
-      ClamIO().scan(filename)
+      ClamIO(host, port, timeout).scan(filename)
     } else {
       // Scanning disabled
-      cbpLogger.warn(s"Scanning is disabled. $filename will not be scanned")
+      cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
       ClamIO.cancelled(Right(FileOk()))
     }
   }
 
   /**
    *
-   * @param c
-   * @param s
-   * @param e
-   * @tparam A
-   * @return
    */
   def broadcastGraph[A](
     c: ClamSink,
@@ -70,10 +102,11 @@ trait ClammyScan {
     }.mapMaterializedValue { mat =>
       for {
         cr <- mat._1.recover {
-          case ClammyException(err) =>
-            Left(err)
-          case stex: StreamTcpException =>
-            Left(ScanError(stex.getMessage))
+          case ClammyException(err) => Left(err)
+          case stex: StreamTcpException => Left(ScanError(stex.getMessage))
+          case ex =>
+            cbpLogger.error("", ex)
+            Left(ScanError(unhandledException))
         }
         sr <- mat._2
       } yield (cr, sr)
@@ -81,12 +114,6 @@ trait ClammyScan {
 
   /**
    *
-   * @param filename
-   * @param contentType
-   * @param save
-   * @param ec
-   * @tparam A
-   * @return
    */
   def sinks[A](filename: String, contentType: Option[String])(
     save: (String, Option[String]) => SaveSink[A]
@@ -116,22 +143,16 @@ trait ClammyScan {
     save: (String, Option[String]) => SaveSink[A],
     remove: A => Unit
   )(implicit ec: ExecutionContext): ClamParser[A] = {
-    cbpLogger.debug("Preparing to scan file")
     multipartFormData[TupledResponse[A]] {
       case FileInfo(partName, filename, contentType) =>
-
-        cbpLogger.debug(s"Setting up sinks to scan $filename")
         val theSinks = sinks(filename, contentType)(save)
         val comb = broadcastGraph(theSinks._1, theSinks._2)
 
-        cbpLogger.debug(s"Preparing accumulator...")
         Accumulator(comb).map { ref =>
           MultipartFormData.FilePart(partName, filename, contentType, ref)
         }
 
     }.validateM((data: MultipartFormData[TupledResponse[A]]) => {
-      cbpLogger.debug(s"Data is:\n $data")
-
       data.files.headOption.map(hf => hf.ref._1 match {
         case Left(err) =>
           // Ooops...there seems to be a problem with the clamd scan result.
@@ -152,33 +173,26 @@ trait ClammyScan {
     })
   }
 
-  /**
-   * Scans file for virus and buffers to a temporary file. Temp file is
-   * removed if file is infected.
-   */
   def scanWithTmpFile(implicit e: ExecutionContext): ClamParser[TemporaryFile] =
     scan[TemporaryFile](
-      save = { (fname, ctype) =>
-      val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-      tempFile.file.deleteOnExit()
-      FileIO.toFile(tempFile.file).mapMaterializedValue { _ =>
-        Future.successful(Option(tempFile))
-      }
+      save = {
+      (fname, ctype) =>
+        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
+        tempFile.file.deleteOnExit()
+        FileIO.toFile(tempFile.file).mapMaterializedValue { _ =>
+          Future.successful(Option(tempFile))
+        }
     },
       remove = tmpFile => tmpFile.file.delete()
     )
 
-  /**
-   * Mostly for convenience this. If you need a service for just scanning
-   * a file for infections, this is it.
-   */
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] =
     scan[Unit](
-      save = (fname, ctype) =>
-      Sink.cancelled[ByteString]
-        .mapMaterializedValue(_ => Future.successful(None)),
-      remove = _ =>
-      cbpLogger.debug("Only scanning, no file to remove")
+      save = (f, c) =>
+      Sink.cancelled[ByteString].mapMaterializedValue { _ =>
+        Future.successful(None)
+      },
+      remove = _ => cbpLogger.debug("Only scanning, no file to remove")
     )
 
   /**

@@ -69,6 +69,7 @@ class ClamIO(
       val builder = immutable.Seq.newBuilder[ByteString]
       if (!commandInitiated) {
         builder += Instream.cmd
+        // Switch the flag indicating that command is sent
         commandInitiated = true
       }
 
@@ -77,6 +78,9 @@ class ClamIO(
 
       (builder += bs).result()
     }.concat {
+      // reset the command flag
+      commandInitiated = false
+      // Close the stream
       Source.single(StreamCompleted)
     }
 
@@ -148,20 +152,20 @@ object ClamIO {
     SendBufferSize(chunkSize)
   )
 
-  def apply()(
+  def apply(host: String, port: Int, timeout: Duration)(
     implicit
     ec: ExecutionContext,
     as: ActorSystem,
     mat: Materializer
-  ): ClamIO =
-    new ClamIO(ClamConfig.host, ClamConfig.port, ClamConfig.timeout)
+  ): ClamIO = new ClamIO(host, port, timeout)
 
+  /**
+   * Returns a cancelled ClamSink.
+   */
   def cancelled(res: ClamResponse)(
     implicit
     ec: ExecutionContext,
     as: ActorSystem,
     mat: Materializer
-  ): ClamSink =
-    Sink.ignore
-      .mapMaterializedValue(_ => Future.successful(res))
+  ): ClamSink = Sink.cancelled.mapMaterializedValue(_ => Future.successful(res))
 }

@@ -1,8 +1,7 @@
 package net.scalytica.clammyscan
 
-import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
-import play.api.Play
+import play.api.Configuration
 
 import scala.concurrent.duration._
 
@@ -17,11 +16,9 @@ trait ConfigKeys {
   val filenameRegex = "clammyscan.validFilenameRegex"
 }
 
-object ClamConfig extends ConfigKeys {
+class ClamConfig(config: Configuration) extends ConfigKeys {
 
-  lazy val underlying = Play.maybeApplication.map { app =>
-    app.configuration.underlying
-  }.getOrElse(ConfigFactory.load)
+  lazy val underlying = config.underlying
 
   private val DefaultPortNumber = 3310
   private val DefaultTimeout = 5 seconds

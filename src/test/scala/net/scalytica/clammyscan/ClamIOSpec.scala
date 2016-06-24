@@ -2,9 +2,8 @@ package net.scalytica.clammyscan
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl._
 import akka.testkit.TestKit
-import akka.util.ByteString
+import com.typesafe.config.ConfigFactory
 import net.scalytica.clammyscan.TestHelper._
 import org.scalatest._
 
@@ -20,26 +19,18 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
 
   override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
+  val conf = {
+    val c = ConfigFactory.defaultReference()
+    new ClamConfig(play.api.Configuration(c))
+  }
+
+  val clamIO = ClamIO(conf.host, conf.port, conf.timeout)
+
   "Using ClamIO" when {
-
-    "the ClammySink" should {
-      "return a ClamResponse" in {
-        val clamIO = ClamIO()
-        val sink = clamIO.sink("eicarcom2.zip")
-
-        eicarZipFile runWith sink map { res =>
-          res.isLeft shouldBe true
-          res.left.get match {
-            case vf: VirusFound => succeed
-            case ce => unexpectedClamError(ce)
-          }
-        }
-      }
-    }
 
     "sending the EICAR string as a stream" should {
       "result in clamav finding a virus" in {
-        eicarStrSource runWith ClamIO().scan("test-file") map { res =>
+        eicarStrSource runWith clamIO.scan("test-file") map { res =>
           res.isLeft shouldBe true
           res.left.get match {
             case vf: VirusFound => succeed
@@ -51,7 +42,7 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
 
     "sending a clean file as a stream" should {
       "result in a successful scan without errors" in {
-        cleanFile runWith ClamIO().scan("clean.pdf") map { res =>
+        cleanFile runWith clamIO.scan("clean.pdf") map { res =>
           res.isRight shouldBe true
           res.right.get shouldBe FileOk()
         }
@@ -60,7 +51,7 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
 
     "sending a zip file containing the EICAR string as a stream" should {
       "result in a virus being found" in {
-        eicarZipFile runWith ClamIO().scan("eicarcom2.zip") map { res =>
+        eicarZipFile runWith clamIO.scan("eicarcom2.zip") map { res =>
           res.isLeft shouldBe true
           res.left.get match {
             case vf: VirusFound => succeed

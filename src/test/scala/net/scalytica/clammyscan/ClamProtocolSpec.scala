@@ -1,7 +1,7 @@
 package net.scalytica.clammyscan
 
 import akka.util.ByteString
-import net.scalytica.clammyscan.ClamProtocol.{ByteStrCommand, Instream}
+import net.scalytica.clammyscan.ClamProtocol.ByteStrCommand
 import org.scalatest.{Matchers, WordSpec}
 
 class ClamProtocolSpec extends WordSpec with Matchers {
