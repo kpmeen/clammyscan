@@ -5,25 +5,27 @@ import javax.inject.Singleton
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import com.google.inject.Inject
-import net.scalytica.clammyscan.{ClammyScanParser, VirusFound}
+import net.scalytica.clammyscan.{ClammyScan, VirusFound}
 import play.api.Logger
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.Json
 import play.api.mvc._
 
 @Singleton
-class Application @Inject()(s: ActorSystem, m: Materializer) extends Controller
-  with ClammyScanParser {
-
-  implicit val system = s
-  implicit val materializer = m
+class Application @Inject()(
+  actorSystem: ActorSystem,
+  materializer: Materializer,
+  clammyScan: ClammyScan
+) extends Controller {
 
   val logger = Logger(this.getClass)
+
+  logger.info("Temp directory is: " + System.getProperty("java.io.tmpdir"))
 
   /**
    * Testing streaming virus scanning of files with no persistence.
    */
-  def scanFile = Action(scanOnly) { request =>
+  def scanFile = Action(clammyScan.scanOnly) { request =>
     request.body.files.head.ref._1 match {
       case Left(err) =>
         err match {
@@ -43,7 +45,7 @@ class Application @Inject()(s: ActorSystem, m: Materializer) extends Controller
   /**
    * Scan with temp file
    */
-  def scanTempFile = Action(scanWithTmpFile) { request =>
+  def scanTempFile = Action(clammyScan.scanWithTmpFile) { request =>
     request.body.files.headOption.map { f =>
       val fname = f.ref._2.get.file.getName
       f.ref._1 match {
