@@ -46,6 +46,7 @@ resolvers ++= Seq(
   Resolver.typesafeRepo("releases"),
   Resolver.sonatypeRepo("releases"),
   Resolver.sonatypeRepo("snapshots"),
+  Resolver.jcenterRepo,
   Resolver.bintrayRepo("scalaz", "releases")
 )
 
