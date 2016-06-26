@@ -4,7 +4,6 @@ import java.io.File
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
-import akka.util.Timeout
 import net.scalytica.clammyscan.MultipartFormDataWriteable.acAsMultiPartWritable
 import net.scalytica.clammyscan.TestHelpers._
 import org.scalatestplus.play._
@@ -24,8 +23,6 @@ class DefaultClammyScanSpec extends PlaySpec with OneAppPerSuite {
   implicit val sys: ActorSystem = app.actorSystem
   implicit val mat: Materializer = app.materializer
   implicit val cfg: Configuration = app.configuration
-
-  implicit val timeout = Timeout(10 seconds)
 
   val clammyScan = new ClammyScanParser(sys, mat, cfg)
 
@@ -80,7 +77,7 @@ class DefaultClammyScanSpec extends PlaySpec with OneAppPerSuite {
     action: EssentialAction,
     req: FakeRequest[AnyContentAsMultipartFormData]
   ): Result =
-    Await.result(Helpers.call(action, req), 10 seconds)
+    await(Helpers.call(action, req))
 
   "A ClammyScan with default configuration" which {
 

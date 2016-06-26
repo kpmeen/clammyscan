@@ -9,7 +9,7 @@
         </encoder>
     </appender>
 
-    <logger name="net.scalytica.clammyscan" level="WARN" additivity="false">
+    <logger name="net.scalytica.clammyscan" level="ERROR" additivity="false">
         <appender-ref ref="STDOUT"/>
     </logger>
 
