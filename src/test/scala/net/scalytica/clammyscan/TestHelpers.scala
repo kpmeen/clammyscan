@@ -5,15 +5,7 @@ import java.io.File
 import akka.stream.IOResult
 import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
-import org.apache.commons.io.output.ByteArrayOutputStream
-import org.apache.http.HttpEntity
-import org.apache.http.entity.ContentType
-import org.apache.http.entity.mime.{MultipartEntity, MultipartEntityBuilder}
-import org.apache.http.entity.mime.content.{FileBody, StringBody}
 import org.scalatest.Matchers.fail
-import play.api.http.Writeable
-import play.api.libs.Files.TemporaryFile
-import play.api.mvc.{AnyContentAsMultipartFormData, Codec, MultipartFormData}
 
 import scala.concurrent.Future
 
@@ -47,59 +39,5 @@ object TestHelpers {
 
   def unexpectedClamError(ce: ClamError): Nothing =
     fail(s"Unexpected ClamError result ${ce.message}")
-
-  object MultipartWriteable {
-
-    implicit def writableOfMultiPartFormData(
-      implicit
-      codec: Codec
-    ): Writeable[MultipartFormData[TemporaryFile]] = {
-
-      val builder = MultipartEntityBuilder.create()
-
-      var entity: Option[HttpEntity] = None
-
-      def transform(multipart: MultipartFormData[TemporaryFile]) = {
-
-        multipart.dataParts.foreach { part =>
-          part._2.foreach { p2 =>
-            builder.addPart(part._1, new StringBody(p2))
-          }
-        }
-
-        multipart.files.foreach { file =>
-          val part = new FileBody(
-            file.ref.file,
-            ContentType.create(
-              file.contentType.getOrElse("application/octet-stream")
-            ),
-            file.filename
-          )
-          builder.addPart(file.key, part)
-        }
-
-        entity = Some(builder.build())
-        val outputStream = new ByteArrayOutputStream
-        entity.foreach(_.writeTo(outputStream))
-        val bytes = outputStream.toByteArray
-        outputStream.close()
-        ByteString.fromArray(bytes)
-      }
-
-      new Writeable[MultipartFormData[TemporaryFile]](
-        transform,
-        entity.map(_.getContentType.getValue)
-      )
-    }
-  }
-
-  implicit def writableOfAnyContentAsMultiPartFormData(
-    implicit
-    codec: Codec
-  ): Writeable[AnyContentAsMultipartFormData] = {
-    MultipartWriteable.writableOfMultiPartFormData(codec).map { c =>
-      c.asMultipartFormData.getOrElse(MultipartFormData(Map(), List(), List()))
-    }
-  }
 
 }

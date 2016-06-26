@@ -1,53 +1,126 @@
 package net.scalytica.clammyscan
 
-import org.scalatest.{AsyncWordSpecLike, BeforeAndAfterAll, Matchers}
-import org.scalatestplus.play._
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.test.Helpers.{POST => POST_REQUEST}
+import java.io.File
 
-//class ClammyScanSpec extends TestKit(ActorSystem("clammyscan-test-system"))
+import akka.actor.ActorSystem
+import akka.stream.Materializer
+import akka.util.Timeout
+import net.scalytica.clammyscan.MultipartFormDataWriteable.acAsMultiPartWritable
+import net.scalytica.clammyscan.TestHelpers._
+import org.scalatestplus.play._
+import play.api.Configuration
+import play.api.libs.Files.TemporaryFile
+import play.api.mvc.MultipartFormData.FilePart
+import play.api.mvc._
+import play.api.test.Helpers._
+import play.api.test._
+
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+
 class DefaultClammyScanSpec extends PlaySpec with OneAppPerSuite {
 
-  implicit override lazy val app =
-    new GuiceApplicationBuilder()
-      //      .configure(Map("ehcacheplugin" -> "disabled"))
-      .build()
+  implicit val sys: ActorSystem = app.actorSystem
+  implicit val mat: Materializer = app.materializer
+  implicit val cfg: Configuration = app.configuration
 
-  //  val clammyScan = new ClammyScanParser(sys, mat, conf)
+  implicit val timeout = Timeout(10 seconds)
 
-    "A ClammyScan" that {
+  val clammyScan = new ClammyScanParser(sys, mat, cfg)
 
-      "is configured with default settings" should {
-        "scan the upl" in {
-
+  def scanner[A](scan: ClamParser[A])(right: Option[A] => Result) = // scalastyle:ignore
+    Action(scan) { req =>
+      req.body.files.headOption.map { fp =>
+        fp.ref._1 match {
+          case Right(ok) =>
+            right(fp.ref._2)
+          case Left(err) =>
+            err match {
+              case vf: VirusFound =>
+                if (fp.ref._2.nonEmpty)
+                  Results.ExpectationFailed("File present with virus")
+                else
+                  Results.NotAcceptable(err.message)
+              case ce =>
+                Results.BadRequest
+            }
         }
-      }
-
+      }.getOrElse(Results.ExpectationFailed("Multipart with no content"))
     }
 
-  //      "broadcast the file stream to both the ClamIO and save sinks" in {
-  //        val filename = "eicarcom2.zip"
-  //        val save = (fname: String, ctype: Option[String]) =>
-  //          Sink.fold[String, ByteString]("") { (s, bs) =>
-  //            s"$s${bs.utf8String}"
-  //          }.mapMaterializedValue(_.map(Option.apply))
-  //
-  //        val ss = clammyScan.sinks[String](filename, None)(save)
-  //        val comb = clammyScan.broadcastGraph(ss._1, ss._2)
-  //
-  //        eicarStrSource runWith comb map { res =>
-  //          res._1.isLeft shouldBe true
-  //          res._1.left.get match {
-  //            case vf: VirusFound => succeed
-  //            case ce => unexpectedClamError(ce)
-  //          }
-  //          res._2 shouldBe Some(eicarString)
-  //        }
-  //      }
-  //      }
+  val scanOnlyAction: EssentialAction =
+    scanner[Unit](clammyScan.scanOnly) { right =>
+      if (right.isEmpty) Results.Ok
+      else Results.ExpectationFailed("File should not be persisted")
+    }
 
-  // TODO: Test with different configuration settings.
+  val scanTmpFile: EssentialAction =
+    scanner[TemporaryFile](clammyScan.scanWithTmpFile) { right =>
+      right.map { f =>
+        Results.Ok(s"filename: ${f.file.getName}")
+      }.getOrElse(Results.InternalServerError("No file attached"))
+    }
 
-  //  }
+  private def fakeReq(file: File, ctype: Option[String]) = {
+    val mfd = MultipartFormData(
+      dataParts = Map.empty,
+      files = Seq(FilePart(
+        key = "file",
+        filename = file.getName,
+        contentType = ctype,
+        ref = TemporaryFile(file)
+      )),
+      badParts = Seq.empty
+    )
+    FakeRequest(Helpers.POST, "/").withMultipartFormDataBody(mfd)
+  }
+
+  private def awaitResult(
+    action: EssentialAction,
+    req: FakeRequest[AnyContentAsMultipartFormData]
+  ): Result =
+    Await.result(Helpers.call(action, req), 10 seconds)
+
+  "A ClammyScan with default configuration" which {
+
+    "receives a file for scanning only" should {
+      "scan infected file and not persist the file" in {
+        val request = fakeReq(eicarZipFile, Some("application/zip"))
+        val result = awaitResult(scanOnlyAction, request)
+
+        result.header.status mustEqual NOT_ACCEPTABLE
+      }
+
+      "scan clean file and not persist the file" in {
+        val request = fakeReq(cleanFile, Some("application/pdf"))
+        val result = awaitResult(scanOnlyAction, request)
+
+        result.header.status mustEqual OK
+      }
+    }
+
+    "receives a file for scanning and saving as temp file" should {
+      "scan infected file and remove the temp file" in {
+        val request = fakeReq(eicarFile, None)
+        val result = awaitResult(scanTmpFile, request)
+
+        result.header.status mustEqual NOT_ACCEPTABLE
+      }
+      "scan clean file and not remove the temp file" in {
+        val request = fakeReq(cleanFile, Some("application/pdf"))
+        val result = awaitResult(scanTmpFile, request)
+
+        result.header.status mustEqual OK
+        val body = Await.result(
+          result.body.consumeData.map[String](_.utf8String), 10 seconds
+        )
+        body must startWith("filename: multipartBody")
+        body must endWith("scanWithTempFile")
+      }
+    }
+  }
+
+  // TODO: Tests with other configuration settings
 
 }
