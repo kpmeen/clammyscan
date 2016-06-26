@@ -161,8 +161,8 @@ class ClammyScanParser @Inject() (
             maybeFile.foreach(f => remove(f))
           }
         case Right(ok) =>
-          // It's all good...
           Future.successful(Right(data))
+
       }).getOrElse {
         Future.successful {
           Left(Results.BadRequest(Json.obj(
@@ -206,16 +206,13 @@ class ClammyScanParser @Inject() (
     err match {
       case vf: VirusFound =>
         // We have encountered the dreaded VIRUS...run awaaaaay
-        if (canRemoveInfectedFiles) {
-          temporaryFile.map(_.file.delete())
-        }
+        if (canRemoveInfectedFiles) onError
+        //          temporaryFile.map(_.file.delete())
         Future.successful(Left(Results.NotAcceptable(
           Json.obj("message" -> vf.message)
         )))
       case err: ScanError =>
-        if (canRemoveOnError) {
-          onError
-        }
+        if (canRemoveOnError) onError
         if (shouldFailOnError) {
           Future.successful(Left(Results.BadRequest(
             Json.obj("message" -> "File size exceeds maximum file size limit.")

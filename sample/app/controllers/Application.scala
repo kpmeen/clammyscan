@@ -50,9 +50,7 @@ class Application @Inject()(
       val fname = f.ref._2.get.file.getName
       f.ref._1 match {
         case Left(err) =>
-          Ok(
-            Json.obj("message" -> s"$fname scan result was: ${err.message}")
-          )
+          Ok(Json.obj("message" -> s"$fname scan result was: ${err.message}"))
 
         case Right(fileOk) =>
           Ok(Json.obj("message" -> s"$fname uploaded successfully"))

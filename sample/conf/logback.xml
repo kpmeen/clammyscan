@@ -6,7 +6,8 @@
     <!-- Will append log message to the standard out -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%coloredLevel %logger{15} - %message%n%xException{5}
+            <pattern>
+                %coloredLevel %logger{15} - %message%n%xException{5}
             </pattern>
         </encoder>
     </appender>

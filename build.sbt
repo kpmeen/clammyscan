@@ -54,7 +54,7 @@ val playVersion = "2.5.4"
 val akkaVersion = "2.4.4"
 val logbackVersion = "1.1.7"
 val slf4jVersion = "1.7.21"
-val scalaTestVersion = "3.0.0-RC2"
+val scalaTestVersion = "2.2.6"//"3.0.0-RC3"
 
 libraryDependencies ++= Seq(
   // Play!
@@ -75,5 +75,5 @@ libraryDependencies ++= Seq(
   // ScalaTest
   "org.scalactic" %% "scalactic" % scalaTestVersion,
   "org.scalatest" %% "scalatest" % scalaTestVersion % "test",
-  "org.scalatestplus" %% "play" % "1.4.0" % "test"
+  "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.0" % "test"
 )

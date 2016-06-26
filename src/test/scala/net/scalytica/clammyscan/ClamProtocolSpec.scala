@@ -8,7 +8,7 @@ class ClamProtocolSpec extends WordSpec with Matchers {
 
   "A ByteString" should {
     "match a ByteStrCmd" in {
-      val istream = ByteString.fromString(TestHelper.instream)
+      val istream = ByteString.fromString(TestHelpers.instreamCmd)
 
       ByteStrCommand.isCommand(istream) shouldBe true
     }
