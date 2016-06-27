@@ -18,7 +18,7 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class DefaultClammyScanSpec extends PlaySpec with OneAppPerSuite {
+class ClammyScanSpec extends PlaySpec with OneAppPerSuite {
 
   implicit val sys: ActorSystem = app.actorSystem
   implicit val mat: Materializer = app.materializer
