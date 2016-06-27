@@ -1,96 +1,123 @@
 package net.scalytica.clammyscan
 
-import java.io.ByteArrayInputStream
-import java.util.concurrent.TimeUnit
+import java.io.File
 
-import org.specs2.execute._
-import org.specs2.matcher.FutureMatchers
-import org.specs2.mutable.Specification
-import org.specs2.specification.Scope
-import play.api.libs.iteratee._
+import akka.actor.ActorSystem
+import akka.stream.Materializer
+import net.scalytica.clammyscan.MultipartFormDataWriteable.acAsMultiPartWritable
+import net.scalytica.clammyscan.TestHelpers._
+import org.scalatestplus.play._
+import play.api.Configuration
+import play.api.libs.Files.TemporaryFile
+import play.api.mvc.MultipartFormData.FilePart
+import play.api.mvc._
+import play.api.test.Helpers._
+import play.api.test._
 
-import scala.concurrent._
-import scala.concurrent.duration._
-import scala.util.{Left, Right}
-
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
-class ClammyScanSpec extends Specification with FutureMatchers {
+class ClammyScanSpec extends PlaySpec with OneAppPerSuite {
 
-  "Sending the EICAR string as a stream to ClamAV" should {
-    "result in clamav finding a virus" in new ScanFileScope {
-      val clamSocket = ClamSocket()
-      clamSocket.socket aka "the ClamSocket" must_!= None
+  implicit val sys: ActorSystem = app.actorSystem
+  implicit val mat: Materializer = app.materializer
+  implicit val cfg: Configuration = app.configuration
 
-      val clamav = new ClammyScan(clamSocket)
+  val clammyScan = new ClammyScanParser(sys, mat, cfg)
 
-      val eicarEnumerator = Enumerator.fromStream(new ByteArrayInputStream(eicarString.getBytes))
-
-      val result = (eicarEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
-        eventuallyError.flatMap {
-          case Left(err) => Future.successful {
+  def scanner[A](scan: ClamParser[A])(right: Option[A] => Result) = // scalastyle:ignore
+    Action(scan) { req =>
+      req.body.files.headOption.map { fp =>
+        fp.ref._1 match {
+          case Right(ok) =>
+            right(fp.ref._2)
+          case Left(err) =>
             err match {
-              case vf: VirusFound => success(s"Found a virus in this one... :-(")
-              case ce: ClamError => failure(s"Unexpected ClamError result ${ce.message}")
+              case vf: VirusFound =>
+                if (fp.ref._2.nonEmpty)
+                  Results.ExpectationFailed("File present with virus")
+                else
+                  Results.NotAcceptable(err.message)
+              case ce =>
+                Results.BadRequest
             }
-          }
-          case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
         }
-      })
-      Await.result(result, Duration(3, TimeUnit.SECONDS))
+      }.getOrElse(Results.ExpectationFailed("Multipart with no content"))
+    }
+
+  val scanOnlyAction: EssentialAction =
+    scanner[Unit](clammyScan.scanOnly) { right =>
+      if (right.isEmpty) Results.Ok
+      else Results.ExpectationFailed("File should not be persisted")
+    }
+
+  val scanTmpFile: EssentialAction =
+    scanner[TemporaryFile](clammyScan.scanWithTmpFile) { right =>
+      right.map { f =>
+        Results.Ok(s"filename: ${f.file.getName}")
+      }.getOrElse(Results.InternalServerError("No file attached"))
+    }
+
+  private def fakeReq(file: File, ctype: Option[String]) = {
+    val mfd = MultipartFormData(
+      dataParts = Map.empty,
+      files = Seq(FilePart(
+        key = "file",
+        filename = file.getName,
+        contentType = ctype,
+        ref = TemporaryFile(file)
+      )),
+      badParts = Seq.empty
+    )
+    FakeRequest(Helpers.POST, "/").withMultipartFormDataBody(mfd)
+  }
+
+  private def awaitResult(
+    action: EssentialAction,
+    req: FakeRequest[AnyContentAsMultipartFormData]
+  ): Result =
+    await(Helpers.call(action, req))
+
+  "A ClammyScan with default configuration" which {
+
+    "receives a file for scanning only" should {
+      "scan infected file and not persist the file" in {
+        val request = fakeReq(eicarZipFile, Some("application/zip"))
+        val result = awaitResult(scanOnlyAction, request)
+
+        result.header.status mustEqual NOT_ACCEPTABLE
+      }
+
+      "scan clean file and not persist the file" in {
+        val request = fakeReq(cleanFile, Some("application/pdf"))
+        val result = awaitResult(scanOnlyAction, request)
+
+        result.header.status mustEqual OK
+      }
+    }
+
+    "receives a file for scanning and saving as temp file" should {
+      "scan infected file and remove the temp file" in {
+        val request = fakeReq(eicarFile, None)
+        val result = awaitResult(scanTmpFile, request)
+
+        result.header.status mustEqual NOT_ACCEPTABLE
+      }
+      "scan clean file and not remove the temp file" in {
+        val request = fakeReq(cleanFile, Some("application/pdf"))
+        val result = awaitResult(scanTmpFile, request)
+
+        result.header.status mustEqual OK
+        val body = Await.result(
+          result.body.consumeData.map[String](_.utf8String), 10 seconds
+        )
+        body must startWith("filename: multipartBody")
+        body must endWith("scanWithTempFile")
+      }
     }
   }
 
-  "Sending a clean file as a stream to ClamAV" should {
-    "result in a successful scan without errors" in new ScanFileScope("clean.pdf") {
-      val clamSocket = ClamSocket()
-      clamSocket.socket aka "the ClamSocket" must_!= None
-
-      val clamav = new ClammyScan(clamSocket)
-
-      val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
-        eventuallyError.flatMap {
-          case Left(vf) => Future.successful(failure(s"Found a virus in this one... :-("))
-          case Right(fok) => Future.successful(success(s"Successful scan of clean file :-)"))
-        }
-      })
-      Await.result(result, Duration(2, TimeUnit.MINUTES))
-    }
-  }
-
-  "Sending a file stream containing the EICAR string to ClamAV" should {
-    "result in a clamav finding a virus" in new ScanFileScope("eicarcom2.zip") {
-      val clamSocket = ClamSocket()
-      clamSocket.socket aka "the ClamSocket" must_!= None
-
-      val clamav = new ClammyScan(clamSocket)
-
-      val result = (fileEnumerator run clamav.clamScan(file)).flatMap[Result](eventuallyError => {
-        eventuallyError.flatMap {
-          case Left(err) => Future.successful {
-            err match {
-              case vf: VirusFound => success(s"Found a virus in this one... :-(")
-              case ce: ClamError => failure(s"Unexpected ClamError result ${ce.message}")
-            }
-          }
-          case Right(fok) => Future.successful(failure(s"Successful scan of clean file :-)"))
-        }
-      })
-      Await.result(result, Duration(2, TimeUnit.MINUTES))
-    }
-  }
-
-  class ScanFileScope(fname: String = "nofile") extends Scope {
-    val file = fname
-
-    val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\u0000"
-
-    val fileStream = this.getClass.getResourceAsStream(s"/$file")
-    val fileEnumerator = Enumerator.fromStream(fileStream)
-
-    fileEnumerator.onDoneEnumerating {
-      fileStream.close()
-    }
-  }
+  // TODO: Tests with other configuration settings
 
 }

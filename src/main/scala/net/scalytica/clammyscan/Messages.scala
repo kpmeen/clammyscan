@@ -19,7 +19,12 @@ case class InvalidFilename(message: String) extends ClamError {
 
 case class FileOk()
 
-// Some general exceptions to allow for failing early and abort the file as soon as possible...
-case class InvalidFilenameException(message: String) extends Exception(message)
+class ClamIOException(
+  message: String,
+  cause: Throwable
+) extends Exception(message, cause) {
 
-case class DuplicateFileException(message: String) extends Exception(message)
+  def this(message: String) = this(message, null) //scalastyle:ignore
+
+  def this(cause: Throwable) = this("", cause)
+}
