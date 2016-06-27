@@ -2,10 +2,14 @@
 
 # ClammyScan
 
-ClammyScan largely consists of a trait defining a few `BodyParser`s. These are made that incoming files can be scanned with clamd (over TCP using INSTREAM). If the file contains a virus or is otherwise infected, a HTTP NotAcceptable is returned with a message explaining why. If the file is OK, the Controller will have the file part available for further processing in the request.
+ClammyScan is a Play! Framework Module that enables anti-virus scanning of streaming file uploads. It does this by exposing a few `BodyParser`s that can be used in your controller actions.
+
+If the file is infected, a `HTTP 406 NotAcceptable` is returned with a message describing the reason. If the file is OK, the Controller will have the file part available for further processing in the request.
 
 ### Why?
-AV scanning is handled by some service running on the machine where files are stored. Files are typically scanned _after_ they've been persisted, and often services that process these files write metadata and location references to a DB. If the AV service should detect an infected file, this file will mostly be put in a quarantine of some sort while the service itself is unaware of what happened. The DB all of a sudden contains broken references. With ClammyScan this can be avoided since the file is scanned while it's being uploaded. Users uploading infected files will be notified about the infected files when they are discovered, instead of wondering why the file can't be found.
+Traditionally, AV scanning is handled by some service running on the machine(s) where files are stored. And files are typically scanned _after_ they've been persisted. In many cases this can result in data corruption. The reason for this is that the services that process the file uploads write metadata, location references, etc to some database. If the AV on the file server detects an infected file, it will typically be placed in a quarantine of some sort. But the file service and database are unaware of what just happened. So now the DB contains broken file references. 
+
+With ClammyScan this can be avoided since the file is scanned while it's being uploaded. If any infections are found, the system is able to react in a way that avoid broken DB references etc. And the users will be notified that they are trying to upload an infected file.
 
 
 ## Usage
@@ -32,12 +36,15 @@ ClammyScan has some configurable parameters. At the moment the configurable para
 ```bash
 # ClammyScan configuration
 # ------------------------
+play.modules.enabled += "net.scalytica.clammyscan.ClammyScanModule"
+
 clammyscan {
   clamd {
     host="localhost"
     port="3310"
-    # Timeout is in milliseconds, where 0 means infinite. (See clamd documentation)
-    timeout="0"
+    # Duration before connection timeout, where 0 means infinite.
+    # (See clamd documentation)
+    timeout=0
   }
   # Defaults to true
   removeInfected=true
@@ -45,9 +52,11 @@ clammyscan {
   removeOnError=true
   # Defaults to false...if set to true it will also set removeOnError=false
   failOnError=false
-  # Disables the clamd scan process and just handle the upload. Defaults to false.
+  # Disables the clamd scan process and just handle the upload.
+  # Defaults to false.
   scanDisabled=false
-  # A regex for validating the filename of the file to be uploaded. Will allow anything if not set.
+  # A regex for validating the filename of the file to be uploaded.
+  # Will allow anything if not set.
   validFilenameRegex="""(.[\"\*\\\>\<\?\/\:\|].)|(.[\.]?.[\.]$)|(.*[ ]+$)"""
 }
 ```
@@ -58,10 +67,53 @@ The properties should be fairly self-explanatory.
 
 * `scan` takes two arguments. A function for saving the file content in parallel with the AV scan. And a function for handling removal of the file in case it is infected. This is the most powerful of the available `BodyParser`s.
 
-* `scanOnly`is a convenience that just scans your input stream and returns a result without persisting the file in any way. 
+* `scanOnly` is a convenience that just scans your input stream and returns a result without persisting the file in any way.
+
+```scala
+  def scanFile = Action(clammyScan.scanOnly) { request =>
+    request.body.files.head.ref._1 match {
+      case Left(err) =>
+        err match {
+          case vf: VirusFound =>
+            NotAcceptable(Json.obj("message" -> vf.message))
+
+          case ce =>
+            logger.error(s"An unknown error occured: ${ce.message}")
+            InternalServerError(Json.obj("message" -> ce.message))
+        }
+
+      case Right(ok) =>
+        Ok(Json.obj("message" -> "file is clean"))
+    }
+  }
+```
  
-* `scanAndParseAsTempFile` will, as the name implies, create a temp file available for later processing in the controller.
+* `scanWithTmpFile` will, as the name implies, create a temp file available for later processing in the controller.
+
+```scala
+  def scanTempFile = Action(clammyScan.scanWithTmpFile) { request =>
+    request.body.files.headOption.map { f =>
+      val fname = f.ref._2.get.file.getName
+      f.ref._1 match {
+        case Left(err) =>
+          Ok(Json.obj("message" -> s"$fname scan result was: ${err.message}"))
+
+        case Right(fileOk) =>
+          Ok(Json.obj("message" -> s"$fname uploaded successfully"))
+      }
+    }.getOrElse {
+      BadRequest("could not find attached file")
+    }
+  }
+```
+
+For a full example of how to use the parsers, please have a look at the play application in the [sample](sample) directory.
+
+
+# Contributing
+
+Any contributions and suggestions are very welcome!
 
 ## Building and Testing
 
-Currently the tests depend on the presence of a clamd instance running. For local testing, change the configuration in conf/application.conf to point to a running installation. The repository also contains a simple script that will start a Docker image containing ClamAV.
+Currently the tests depend on the presence of a clamd instance running. For local testing, change the configuration in conf/application.conf to point to a running installation. Alternatively, you can start up the following Docker container: `docker pull kpmeen/docker-clamav`

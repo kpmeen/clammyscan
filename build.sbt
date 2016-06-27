@@ -4,7 +4,7 @@ import scalariform.formatter.preferences._
 
 name := """clammyscan"""
 
-version := "0.23-SNAPSHOT"
+version := "1.0.0-SNAPSHOT"
 
 organization := "net.scalytica"
 
