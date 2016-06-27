@@ -179,7 +179,7 @@ class ClammyScanParser @Inject()(
         (fname, ctype) =>
           val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
 //          tempFile.file.deleteOnExit()
-          FileIO.toFile(tempFile.file).mapMaterializedValue { _ =>
+          FileIO.toFile(tempFile.file).mapMaterializedValue { fio =>
             Future.successful(Option(tempFile))
           }
       },
@@ -189,7 +189,7 @@ class ClammyScanParser @Inject()(
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] =
     scan[Unit](
       save = (f, c) =>
-        Sink.cancelled[ByteString].mapMaterializedValue { _ =>
+        Sink.cancelled[ByteString].mapMaterializedValue { fio =>
           Future.successful(None)
         },
       remove = _ => cbpLogger.debug("Only scanning, no file to remove")

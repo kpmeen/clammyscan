@@ -4,10 +4,11 @@ scala:
 
 jdk:
 - oraclejdk8
+- openjdk8
 
 env:
   global:
-    - secure: ujjb//TrebgFRWibElyF4rU76c1OYQc51k4y3GQVcXtuhi44BTqdva+vpU5L+PNISp1SotrElxWlS+901mGV3Sm+5qyHOssvNUDua2WqJUtThh7pIAlbfk+vQqq03Kmkga5OaXZvv0aIW/NtVg0GyFIoDnBk7U3T9r/tmKQPFYqfoMIRBhKnu96bYtUJ8/hW1VagY0b4GbGIFlOE+6glVdDnGbEdtUxIuR2Ti3pB3JAoYVw0Egxx/KVX13Ji30nypeHPxWT86V/LEG7JTurSOfj5wciwJNaEMuezXXDC8bfs3QartpaQ8aTAnmN0mi/VbdMpBzEyUbvf8JM2FIcwcg==
+    - secure: YiHmeeteFXnAqUC3mVmqXCxipjB/Ec1YOj5quDAl6Rx+nIK4pD0f0iZ2vMcXoLgcbAG48hYtkTHzi+6mRu6uNU9ARCIhdsYq8R6nFWNZFkaG7hc6yqDobrpXLkmVLqexHC+QNOeZrWBhtJb7dwgkMqsAfpA5ONNNXEYFwe0XHfsoGhyB+k07V0IXrM/8Crh4G+yWc83HIGZm/pd01TT1sGNbAaGiolyc8tiXgBIg722RG5I40ZpSXgr4RLcKJKM5lNCl0Jr1bAIrBpGtUvJaMMxc/fXxWzsug37jEb5nl45LwKkZ+VkrP+cl6cQYcJP4JF8VS5oxni6MPGxnA+dC0g==
 
 build:
   pre_ci_boot:
