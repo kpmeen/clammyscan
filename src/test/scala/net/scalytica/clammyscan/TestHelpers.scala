@@ -21,15 +21,17 @@ object TestHelpers {
 
   val eicarStrSource = Source.single[ByteString](ByteString(eicarString))
 
-  val cleanFile = file("clean.pdf")
-  val eicarFile = file("eicar.com")
-  val eicarTxtFile = file("eicar.com.txt")
-  val eicarZipFile = file("eicarcom2.zip")
+  // scalastyle:off
+  def cleanFile = file("clean.pdf")
+  def eicarFile = file("eicar.com")
+  def eicarTxtFile = file("eicar.com.txt")
+  def eicarZipFile = file("eicarcom2.zip")
 
-  val cleanFileSrc = fileAsSource("clean.pdf")
-  val eicarFileSrc = fileAsSource("eicar.com")
-  val eicarTxtFileSrc = fileAsSource("eicar.com.txt")
-  val eicarZipFileSrc = fileAsSource("eicarcom2.zip")
+  def cleanFileSrc = fileAsSource("clean.pdf")
+  def eicarFileSrc = fileAsSource("eicar.com")
+  def eicarTxtFileSrc = fileAsSource("eicar.com.txt")
+  def eicarZipFileSrc = fileAsSource("eicarcom2.zip")
+  // scalastyle:on
 
   def file(fname: String): File =
     new File(this.getClass.getResource(s"/$fname").toURI)

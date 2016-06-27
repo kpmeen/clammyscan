@@ -8,8 +8,8 @@ import net.scalytica.clammyscan.TestHelpers._
 import org.scalatest._
 
 import scala.concurrent.Await
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
   with WordSpecLike

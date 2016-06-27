@@ -49,7 +49,7 @@ trait ClammyScan {
 
 }
 
-class ClammyScanParser @Inject()(
+class ClammyScanParser @Inject() (
   sys: ActorSystem,
   mat: Materializer,
   config: Configuration
@@ -176,22 +176,22 @@ class ClammyScanParser @Inject()(
   def scanWithTmpFile(implicit e: ExecutionContext): ClamParser[TemporaryFile] =
     scan[TemporaryFile](
       save = {
-        (fname, ctype) =>
-          val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-//          tempFile.file.deleteOnExit()
-          FileIO.toFile(tempFile.file).mapMaterializedValue { fio =>
-            Future.successful(Option(tempFile))
-          }
-      },
+      (fname, ctype) =>
+        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
+        tempFile.file.deleteOnExit()
+        FileIO.toFile(tempFile.file).mapMaterializedValue { fio =>
+          Future.successful(Option(tempFile))
+        }
+    },
       remove = tmpFile => tmpFile.file.delete()
     )
 
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] =
     scan[Unit](
       save = (f, c) =>
-        Sink.cancelled[ByteString].mapMaterializedValue { fio =>
-          Future.successful(None)
-        },
+      Sink.cancelled[ByteString].mapMaterializedValue { fio =>
+        Future.successful(None)
+      },
       remove = _ => cbpLogger.debug("Only scanning, no file to remove")
     )
 
