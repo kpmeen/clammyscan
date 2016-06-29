@@ -9,12 +9,12 @@ import org.scalatest.Matchers.fail
 
 import scala.concurrent.Future
 
-object TestHelpers {
+case class FileSource(
+  fname: String, source: Source[ByteString, Future[IOResult]]
+)
 
-  val instreamCmd = "zINSTREAM\u0000"
-  val pingCmd = "zPING\u0000"
-  val statusCmd = "zSTATS\u0000"
-  val versionCmd = "VERSION"
+trait TestResources {
+  self =>
 
   val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-" +
     "ANTIVIRUS-TEST-FILE!$H+H*\u0000"
@@ -22,22 +22,27 @@ object TestHelpers {
   val eicarStrSource = Source.single[ByteString](ByteString(eicarString))
 
   // scalastyle:off
-  def cleanFile = file("clean.pdf")
-  def eicarFile = file("eicar.com")
-  def eicarTxtFile = file("eicar.com.txt")
-  def eicarZipFile = file("eicarcom2.zip")
-
-  def cleanFileSrc = fileAsSource("clean.pdf")
-  def eicarFileSrc = fileAsSource("eicar.com")
-  def eicarTxtFileSrc = fileAsSource("eicar.com.txt")
-  def eicarZipFileSrc = fileAsSource("eicarcom2.zip")
+  val cleanFile = fileAsSource("clean.pdf")
+  val eicarFile = fileAsSource("eicar.com")
+  val eicarTxtFile = fileAsSource("eicar.com.txt")
+  val eicarZipFile = fileAsSource("eicarcom2.zip")
   // scalastyle:on
 
-  def file(fname: String): File =
-    new File(this.getClass.getResource(s"/$fname").toURI)
+  def fileAsSource(fname: String): FileSource =
+    FileSource(
+      fname,
+      FileIO.fromFile(
+        new File(self.getClass.getResource(s"/files/$fname").toURI)
+      )
+    )
+}
 
-  def fileAsSource(fname: String): Source[ByteString, Future[IOResult]] =
-    FileIO.fromFile(file(fname))
+object TestHelpers {
+
+  val instreamCmd = "zINSTREAM\u0000"
+  val pingCmd = "zPING\u0000"
+  val statusCmd = "zSTATS\u0000"
+  val versionCmd = "VERSION"
 
   def unexpectedClamError(ce: ClamError): Nothing =
     fail(s"Unexpected ClamError result ${ce.message}")

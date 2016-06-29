@@ -14,7 +14,8 @@ import scala.concurrent.duration._
 class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
   with WordSpecLike
   with Matchers
-  with BeforeAndAfterAll {
+  with BeforeAndAfterAll
+  with TestResources {
 
   implicit val sys = system
   implicit val mat = ActorMaterializer()
@@ -48,7 +49,7 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
     "sending a clean file as a stream" should {
       "result in a successful scan without errors" in {
         val res = Await.result(
-          cleanFileSrc runWith clamIO.scan("clean.pdf"),
+          cleanFile.source runWith clamIO.scan(cleanFile.fname),
           10 seconds
         )
 
@@ -60,7 +61,7 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
     "sending a zip file containing the EICAR string as a stream" should {
       "result in a virus being found" in {
         val res = Await.result(
-          eicarZipFileSrc runWith clamIO.scan("eicarcom2.zip"),
+          eicarZipFile.source runWith clamIO.scan(eicarZipFile.fname),
           10 seconds
         )
 

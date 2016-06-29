@@ -52,7 +52,7 @@ val playVersion = "2.5.4"
 val akkaVersion = "2.4.4"
 val logbackVersion = "1.1.7"
 val slf4jVersion = "1.7.21"
-val scalaTestVersion = "2.2.6"//"3.0.0-RC3"
+val scalaTestVersion = "2.2.6"
 
 libraryDependencies ++= Seq(
   // Play!

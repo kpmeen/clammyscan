@@ -178,9 +178,8 @@ class ClammyScanParser @Inject() (
       save = {
       (fname, ctype) =>
         val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-        tempFile.file.deleteOnExit()
         FileIO.toFile(tempFile.file).mapMaterializedValue { fio =>
-          Future.successful(Option(tempFile))
+          fio.map(_ => Option(tempFile))
         }
     },
       remove = tmpFile => tmpFile.file.delete()
@@ -189,7 +188,7 @@ class ClammyScanParser @Inject() (
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] =
     scan[Unit](
       save = (f, c) =>
-      Sink.cancelled[ByteString].mapMaterializedValue { fio =>
+      Sink.cancelled[ByteString].mapMaterializedValue { notUsed =>
         Future.successful(None)
       },
       remove = _ => cbpLogger.debug("Only scanning, no file to remove")
@@ -202,17 +201,18 @@ class ClammyScanParser @Inject() (
   private def handleError[A](
     fud: MultipartFormData[TupledResponse[A]],
     err: ClamError
-  )(onError: => Unit)(implicit ec: ExecutionContext) = {
+  )(remove: => Unit)(implicit ec: ExecutionContext) = {
     err match {
       case vf: VirusFound =>
         // We have encountered the dreaded VIRUS...run awaaaaay
-        if (canRemoveInfectedFiles) onError
-        //          temporaryFile.map(_.file.delete())
+        if (canRemoveInfectedFiles) remove
+
         Future.successful(Left(Results.NotAcceptable(
           Json.obj("message" -> vf.message)
         )))
+
       case err: ScanError =>
-        if (canRemoveOnError) onError
+        if (canRemoveOnError) remove
         if (shouldFailOnError) {
           Future.successful(Left(Results.BadRequest(
             Json.obj("message" -> "File size exceeds maximum file size limit.")
