@@ -9,6 +9,7 @@ import play.api.Configuration
 import play.api.http.Writeable
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.Files.TemporaryFile
+import play.api.libs.json.Json
 import play.api.mvc.MultipartFormData.FilePart
 import play.api.mvc._
 import play.api.test.FakeRequest
@@ -26,7 +27,7 @@ trait ClammyContext extends WordSpecLike
 
   val baseExtraConfig: Map[String, Any] = Map(
     "akka.jvm-exit-on-fatal-error" -> false,
-    "akka.loglevel" -> "DEBUG",
+    "akka.loglevel" -> "INFO",
     "akka.loggers" -> Seq("akka.event.slf4j.Slf4jLogger"),
     "logging-filter" -> "akka.event.slf4j.Slf4jLoggingFilter"
   )
@@ -70,38 +71,74 @@ trait ClammyContext extends WordSpecLike
     }
   }
 
-  def scanner[A](scan: ClamParser[A])(right: Option[A] => Result) = // scalastyle:ignore
+  def scanner[A](scan: ClamParser[A])(f: (TupledResponse[A]) => Result) = // scalastyle:ignore
     Action(scan) { req =>
       req.body.files.headOption.map { fp =>
-        fp.ref._1 match {
+        f(fp.ref)
+      }.getOrElse(Results.ExpectationFailed(
+        Json.obj("message" -> "Multipart with no content")
+      ))
+    }
+
+  def scanOnlyAction(parser: ClammyScanParser): EssentialAction = {
+    scanner[Unit](parser.scanOnly) {
+      case tr: TupledResponse[Unit] =>
+        tr._1 match {
           case Right(ok) =>
-            right(fp.ref._2)
+            tr._2.map { _ =>
+              Results.ExpectationFailed(
+                Json.obj("message" -> "File should not be persisted")
+              )
+            }.getOrElse(Results.Ok)
+
           case Left(err) =>
             err match {
               case vf: VirusFound =>
-                if (fp.ref._2.nonEmpty)
-                  Results.ExpectationFailed("File present with virus")
-                else
-                  Results.NotAcceptable(err.message)
+                Results.NotAcceptable(Json.obj("message" -> err.message))
+
               case ce =>
-                Results.BadRequest(ce.message)
+                Results.BadRequest(Json.obj("message" -> ce.message))
             }
         }
-      }.getOrElse(Results.ExpectationFailed("Multipart with no content"))
     }
+  }
 
-  def scanOnlyAction(parser: ClammyScanParser): EssentialAction =
-    scanner[Unit](parser.scanOnly) { right =>
-      if (right.isEmpty) Results.Ok
-      else Results.ExpectationFailed("File should not be persisted")
-    }
+  def scanTmpAction(parser: ClammyScanParser): EssentialAction = {
+    scanner[TemporaryFile](parser.scanWithTmpFile) {
+      case tr: TupledResponse[TemporaryFile] =>
+        tr._1 match {
+          case Right(ok) =>
+            tr._2.map { f =>
+              Results.Ok
+            }.getOrElse(Results.ExpectationFailed(
+              Json.obj("message" -> "File should be persisted")
+            ))
 
-  def scanTmpAction(parser: ClammyScanParser): EssentialAction =
-    scanner[TemporaryFile](parser.scanWithTmpFile) { right =>
-      right.map { f =>
-        Results.Ok(s"filename: ${f.file.getName}")
-      }.getOrElse(Results.InternalServerError("No file attached"))
+          case Left(err) =>
+            err match {
+              case vf: VirusFound =>
+                if (parser.clamConfig.canRemoveInfectedFiles)
+                  tr._2.map { _ =>
+                    Results.ExpectationFailed(
+                      Json.obj("message" -> "File should not be persisted")
+                    )
+                  }.getOrElse(Results.NotAcceptable(
+                    Json.obj("message" -> err.message)
+                  ))
+                else
+                  tr._2.map { _ =>
+                    Results.NotAcceptable(Json.obj("message" -> err.message))
+                  }.getOrElse {
+                    Results.ExpectationFailed(
+                      Json.obj("message" -> "File should be persisted")
+                    )
+                  }
+
+              case ce => Results.BadRequest(Json.obj("message" -> ce.message))
+            }
+        }
     }
+  }
 
   def fakeReq(
     fileSource: FileSource,

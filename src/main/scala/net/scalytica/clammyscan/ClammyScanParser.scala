@@ -22,6 +22,10 @@ import scala.concurrent.{ExecutionContext, Future}
  */
 trait ClammyScan {
 
+  val system: ActorSystem
+  val materializer: Materializer
+  val clamConfig: ClamConfig
+
   /**
    *
    * @param save
@@ -58,9 +62,9 @@ class ClammyScanParser @Inject() (
   implicit val system: ActorSystem = sys
   implicit val materializer: Materializer = mat
 
-  val clamConf = new ClamConfig(config)
+  val clamConfig = new ClamConfig(config)
 
-  import clamConf._
+  import clamConfig._
 
   val cbpLogger = Logger(classOf[ClammyScanParser])
 
@@ -182,7 +186,7 @@ class ClammyScanParser @Inject() (
           fio.map(_ => Option(tempFile))
         }
     },
-      remove = tmpFile => tmpFile.file.delete()
+      remove = tmpFile => tmpFile.clean()
     )
 
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] =
@@ -196,30 +200,41 @@ class ClammyScanParser @Inject() (
 
   /**
    * Function specifically for handling the ClamError cases in the
-   * validation step
+   * validation step. The logic here is highly dependent on how the
+   * parser is configured.
    */
   private def handleError[A](
     fud: MultipartFormData[TupledResponse[A]],
     err: ClamError
-  )(remove: => Unit)(implicit ec: ExecutionContext) = {
-    err match {
-      case vf: VirusFound =>
-        // We have encountered the dreaded VIRUS...run awaaaaay
-        if (canRemoveInfectedFiles) remove
+  )(remove: => Unit)(
+    implicit
+    ec: ExecutionContext
+  ): Future[Either[Result, MultipartFormData[TupledResponse[A]]]] = {
+    Future.successful {
+      err match {
+        case vf: VirusFound =>
+          // We have encountered the dreaded VIRUS...run awaaaaay
+          if (canRemoveInfectedFiles) {
+            remove
+            Left(Results.NotAcceptable(
+              Json.obj("message" -> vf.message)
+            ))
+          } else {
+            // We cannot remove the uploaded file, so we return the parsed
+            // result back to the controller to let it handle it.
+            Right(fud)
+          }
 
-        Future.successful(Left(Results.NotAcceptable(
-          Json.obj("message" -> vf.message)
-        )))
-
-      case err: ScanError =>
-        if (canRemoveOnError) remove
-        if (shouldFailOnError) {
-          Future.successful(Left(Results.BadRequest(
-            Json.obj("message" -> "File size exceeds maximum file size limit.")
-          )))
-        } else {
-          Future.successful(Right(fud))
-        }
+        case err: ScanError =>
+          if (canRemoveOnError) remove
+          if (shouldFailOnError) {
+            Left(Results.BadRequest(
+              Json.obj("message" -> err.message)
+            ))
+          } else {
+            Right(fud)
+          }
+      }
     }
   }
 

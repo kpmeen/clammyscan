@@ -16,6 +16,12 @@ case class FileSource(
 trait TestResources {
   self =>
 
+  val eicarResult =
+    Some("""{"message":"stream: Eicar-Test-Signature FOUND"}""")
+
+  val clamdUnavailableResult =
+    Some("""{"message":"Could not connect to clamd"}""")
+
   val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-" +
     "ANTIVIRUS-TEST-FILE!$H+H*\u0000"
 
