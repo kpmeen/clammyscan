@@ -1,6 +1,5 @@
 package net.scalytica.clammyscan
 
-import net.ceedubs.ficus.Ficus._
 import play.api.Configuration
 
 import scala.concurrent.duration._
@@ -26,35 +25,33 @@ class ClamConfig(config: Configuration) extends ConfigKeys {
   /**
    * IP address of clamd daemon. Defaults to localhost
    */
-  lazy val host: String =
-    underlying.as[Option[String]](hostKey).getOrElse("localhost")
+  lazy val host: String = config.getString(hostKey).getOrElse("localhost")
 
   /**
    * port of clamd daemon. Defaults to 3310
    */
-  lazy val port: Int =
-    underlying.as[Option[Int]](portKey).getOrElse(DefaultPortNumber)
+  lazy val port: Int = config.getInt(portKey).getOrElse(DefaultPortNumber)
 
   /**
    * Socket timeout for clam. Defaults to 5 seconds.
    */
   lazy val timeout: Duration =
-    underlying.as[Option[FiniteDuration]](timeoutKey)
-      .map(l => if (l.length == 0) Duration.Inf else l)
-      .getOrElse(DefaultTimeout)
+    config.getMilliseconds(timeoutKey).map { ms =>
+      if (ms == 0) Duration.Inf else FiniteDuration(ms, MILLISECONDS)
+    }.getOrElse(DefaultTimeout)
 
   /**
    * Remove file if it is infected... defaults value is true
    */
   lazy val canRemoveInfectedFiles: Boolean =
-    underlying.as[Option[Boolean]](removeInfectedKey).getOrElse(true)
+    config.getBoolean(removeInfectedKey).getOrElse(true)
 
   /**
    * Whether or not to cause the body parser to stop uploading if we
    * cannot connect to clamd... defaults to false
    */
   lazy val shouldFailOnError: Boolean =
-    underlying.as[Option[Boolean]](failOnErrorKey).getOrElse(false)
+    config.getBoolean(failOnErrorKey).getOrElse(false)
 
   /**
    * Remove file if an error occurred during scanning... defaults to true,
@@ -62,13 +59,13 @@ class ClamConfig(config: Configuration) extends ConfigKeys {
    */
   lazy val canRemoveOnError: Boolean =
     if (shouldFailOnError) false
-    else underlying.as[Option[Boolean]](removeOnErrorKey).getOrElse(true)
+    else config.getBoolean(removeOnErrorKey).getOrElse(true)
 
   /**
    * Disables all virus scanning... defaults to false
    */
   lazy val scanDisabled: Boolean =
-    underlying.as[Option[Boolean]](disabled).getOrElse(false)
+    config.getBoolean(disabled).getOrElse(false)
 
   /**
    * Allows defining a regular expression to validate filenames for
@@ -79,6 +76,6 @@ class ClamConfig(config: Configuration) extends ConfigKeys {
    *
    */
   lazy val validFilenameRegex: Option[String] =
-    underlying.as[Option[String]](filenameRegex).orElse(Option(filenameRegex))
+    config.getString(filenameRegex).orElse(Option(filenameRegex))
 
 }

@@ -7,18 +7,19 @@ import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import com.google.inject.Inject
+import org.slf4j.LoggerFactory
+import play.api.Configuration
 import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.Json
 import play.api.libs.streams.Accumulator
 import play.api.mvc.BodyParsers.parse._
 import play.api.mvc._
-import play.api.{Configuration, Logger}
 import play.core.parsers.Multipart.FileInfo
 
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
- * Enables streaming upload of files/attachments with custom metadata to GridFS
+ * Enables streaming upload of files/attachments with parallel AV scanning.
  */
 trait ClammyScan {
 
@@ -66,7 +67,7 @@ class ClammyScanParser @Inject() (
 
   import clamConfig._
 
-  val cbpLogger = Logger(classOf[ClammyScanParser])
+  val cbpLogger = LoggerFactory.getLogger(this.getClass)
 
   /**
    * Sets up a `ClamSink` that is ready to receive the incoming stream. Or one
@@ -74,7 +75,7 @@ class ClammyScanParser @Inject() (
    *
    * Controlled by the config property `clammyscan.scanDisabled`.
    */
-  private[this] def clammySink(
+  private def clammySink(
     filename: String
   )(implicit ec: ExecutionContext) = {
     if (!scanDisabled) {
@@ -89,7 +90,7 @@ class ClammyScanParser @Inject() (
   /**
    *
    */
-  def broadcastGraph[A](
+  protected def broadcastGraph[A](
     c: ClamSink,
     s: SaveSink[A]
   )(implicit e: ExecutionContext): Sink[ByteString, Future[TupledResponse[A]]] =
@@ -119,7 +120,7 @@ class ClammyScanParser @Inject() (
   /**
    *
    */
-  def sinks[A](filename: String, contentType: Option[String])(
+  protected def sinks[A](filename: String, contentType: Option[String])(
     save: (String, Option[String]) => SaveSink[A]
   )(implicit ec: ExecutionContext): (ClamSink, SaveSink[A]) =
     if (fileNameValid(filename)) {
@@ -203,7 +204,7 @@ class ClammyScanParser @Inject() (
    * validation step. The logic here is highly dependent on how the
    * parser is configured.
    */
-  private def handleError[A](
+  protected def handleError[A](
     fud: MultipartFormData[TupledResponse[A]],
     err: ClamError
   )(remove: => Unit)(
@@ -242,7 +243,7 @@ class ClammyScanParser @Inject() (
    * Will validate the filename based on the configured regular expression
    * defined in application.conf.
    */
-  private[this] def fileNameValid(filename: String): Boolean =
+  protected def fileNameValid(filename: String): Boolean =
     validFilenameRegex.forall(regex =>
       regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
         case Some(m) => false

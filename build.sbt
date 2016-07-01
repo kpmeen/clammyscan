@@ -60,9 +60,7 @@ ScalariformKeys.preferences := ScalariformKeys.preferences.value
 resolvers ++= Seq(
   Resolver.typesafeRepo("releases"),
   Resolver.sonatypeRepo("releases"),
-  Resolver.sonatypeRepo("snapshots"),
-  Resolver.jcenterRepo,
-  Resolver.bintrayRepo("scalaz", "releases")
+  Resolver.jcenterRepo
 )
 
 val playVersion = "2.5.4"
@@ -76,20 +74,15 @@ libraryDependencies ++= Seq(
   // Play!
   "com.typesafe.play" %% "play" % playVersion % "provided",
   "com.typesafe.play" %% "play-test" % playVersion % "test",
-  // Ficus config DSL
-  "com.iheart" %% "ficus" % "1.2.6",
   // Akka
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
-  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion,
+  "com.typesafe.akka" %% "akka-actor" % akkaVersion % "provided",
+  "com.typesafe.akka" %% "akka-stream" % akkaVersion % "provided",
+  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % "test",
+  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",
   // Logging
   "org.slf4j" % "slf4j-api" % slf4jVersion,
-  "ch.qos.logback" % "logback-core" % logbackVersion,
-  "ch.qos.logback" % "logback-classic" % logbackVersion,
   // ScalaTest
-  "org.scalactic" %% "scalactic" % stestVersion,
+  "org.scalactic" %% "scalactic" % stestVersion % "test",
   "org.scalatest" %% "scalatest" % stestVersion % "test",
   "org.scalatestplus.play" %% "scalatestplus-play" % stestPlusVersion % "test"
 )
