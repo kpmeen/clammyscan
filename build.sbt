@@ -8,6 +8,20 @@ organization := "net.scalytica"
 
 licenses +=("MIT", url("http://opensource.org/licenses/MIT"))
 
+pomExtra := (
+  <scm>
+    <url>git@github.com:kpmeen/clammyscan.git</url>
+    <connection>scm:git:git@github.com:kpmeen/clammyscan.git</connection>
+  </scm>
+  <developers>
+    <developer>
+      <id>kpmeen</id>
+      <name>Knut Petter Meen</name>
+      <url>http://scalytica.net</url>
+    </developer>
+  </developers>
+  )
+
 scalaVersion := "2.11.8"
 
 scalacOptions ++= Seq(
@@ -29,6 +43,7 @@ scalacOptions ++= Seq(
 
 scalacOptions in Test ++= Seq("-Yrangepos")
 
+publishMavenStyle := true
 publishArtifact in Test := false
 
 coverageMinimum := 80
