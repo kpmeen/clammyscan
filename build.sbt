@@ -8,9 +8,8 @@ organization := "net.scalytica"
 
 licenses +=("MIT", url("http://opensource.org/licenses/MIT"))
 
-homepage := Some(url("https://github.com/kpmeen/clammyscan"))
-
 pomExtra := (
+  <url>https://github.com/kpmeen/clammyscan</url>
   <scm>
     <url>git@github.com:kpmeen/clammyscan.git</url>
     <connection>scm:git:git@github.com:kpmeen/clammyscan.git</connection>
