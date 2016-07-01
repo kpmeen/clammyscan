@@ -22,7 +22,7 @@ resolvers += "JCenter" at "http://jcenter.bintray.com/"
 And the dependency for the ClammyScan library:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.0"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.1"
 ```
 
 ## Configuration
@@ -65,9 +65,14 @@ The properties should be fairly self-explanatory.
 
 ## Available BodyParsers
 
-* `scan` takes two arguments. A function for saving the file content in parallel with the AV scan. And a function for handling removal of the file in case it is infected. This is the most powerful of the available `BodyParser`s.
+### scan
 
-* `scanOnly` is a convenience that just scans your input stream and returns a result without persisting the file in any way.
+Takes two arguments. A function for saving the file content in parallel with the AV scan. And a function for handling removal of the file in case it is infected. This is the most powerful of the available parsers.
+
+This is also the parser to use if you need to provide custom handling for saving the file.
+
+### scanOnly
+Is a convenience that just scans your input stream and returns a result without persisting the file in any way.
 
 ```scala
   def scanFile = Action(clammyScan.scanOnly) { request =>
@@ -87,8 +92,10 @@ The properties should be fairly self-explanatory.
     }
   }
 ```
- 
-* `scanWithTmpFile` will, as the name implies, create a temp file available for later processing in the controller.
+
+### scanWithTmpFile
+
+Will, as the name implies, create a temp file available for later processing in the controller.
 
 ```scala
   def scanTempFile = Action(clammyScan.scanWithTmpFile) { request =>
@@ -106,6 +113,8 @@ The properties should be fairly self-explanatory.
     }
   }
 ```
+
+
 
 For a full example of how to use the parsers, please have a look at the play application in the [sample](sample) directory.
 
