@@ -225,11 +225,11 @@ class ClammyScanParser @Inject() (
             Right(fud)
           }
 
-        case err: ScanError =>
+        case clamError =>
           if (canRemoveOnError) remove
           if (shouldFailOnError) {
             Left(Results.BadRequest(
-              Json.obj("message" -> err.message)
+              Json.obj("message" -> clamError.message)
             ))
           } else {
             Right(fud)
