@@ -17,7 +17,7 @@ With ClammyScan this can be avoided since the file is scanned while it's being u
 Add the dependency for ClammyScan to your `build.sbt`:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.5"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.6"
 ```
 
 ## Configuration
