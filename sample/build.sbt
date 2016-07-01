@@ -29,7 +29,5 @@ libraryDependencies ++= Seq(
 resolvers ++= Seq(
   Resolver.mavenLocal,
   Resolver.sonatypeRepo("releases"),
-  Resolver.sonatypeRepo("snapshots"),
-  Resolver.jcenterRepo,
-  Resolver.bintrayRepo("scalaz", "releases")
+  Resolver.sonatypeRepo("snapshots")
 )

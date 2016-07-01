@@ -14,12 +14,7 @@ With ClammyScan this can be avoided since the file is scanned while it's being u
 
 ## Usage
 
-Add the following repository to your build.sbt file:
-
-```scala
-resolvers += "JCenter" at "http://jcenter.bintray.com/"
-```
-And the dependency for the ClammyScan library:
+Add the dependency for ClammyScan to your `build.sbt`:
 
 ```scala
 libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.5"
