@@ -7,13 +7,12 @@ import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import com.google.inject.Inject
-import org.slf4j.LoggerFactory
-import play.api.Configuration
 import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.Json
 import play.api.libs.streams.Accumulator
 import play.api.mvc.BodyParsers.parse._
 import play.api.mvc._
+import play.api.{Configuration, Logger}
 import play.core.parsers.Multipart.FileInfo
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -67,7 +66,7 @@ class ClammyScanParser @Inject() (
 
   import clamConfig._
 
-  val cbpLogger = LoggerFactory.getLogger(this.getClass)
+  val cbpLogger = Logger(this.getClass)
 
   /**
    * Sets up a `ClamSink` that is ready to receive the incoming stream. Or one

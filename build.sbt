@@ -65,7 +65,6 @@ resolvers ++= Seq(
 
 val playVersion = "2.5.4"
 val akkaVersion = "2.4.4"
-val slf4jVersion = "1.7.21"
 val stestVersion = "2.2.6"
 val stestPlusVersion = "1.5.0"
 
@@ -78,8 +77,6 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream" % akkaVersion % "provided",
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % "test",
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",
-  // Logging
-  "org.slf4j" % "slf4j-api" % slf4jVersion,
   // ScalaTest
   "org.scalactic" %% "scalactic" % stestVersion % "test",
   "org.scalatest" %% "scalatest" % stestVersion % "test",

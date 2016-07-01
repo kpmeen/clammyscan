@@ -10,7 +10,7 @@ import akka.stream.{Materializer, StreamTcpException}
 import akka.util.ByteString
 import net.scalytica.clammyscan.ClamProtocol._
 import net.scalytica.clammyscan.UnsignedInt._
-import org.slf4j.LoggerFactory
+import play.api.Logger
 
 import scala.collection.immutable
 import scala.concurrent.duration.Duration
@@ -28,7 +28,7 @@ class ClamIO(
   timeout: Duration
 ) {
 
-  private val logger = LoggerFactory.getLogger(this.getClass)
+  private val logger = Logger(this.getClass)
 
   private val inetAddr = new InetSocketAddress(host, port)
 
