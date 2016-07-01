@@ -6,6 +6,7 @@ import play.api.mvc.{BodyParser, MultipartFormData}
 
 import scala.concurrent.Future
 
+// $COVERAGE-OFF$No need for coverage here...
 package object clammyscan {
 
   type ClamResponse = Either[ClamError, FileOk]
@@ -28,3 +29,4 @@ package object clammyscan {
   private[clammyscan] val couldNotConnect =
     ScanError("Could not connect to clamd")
 }
+// $COVERAGE-ON$

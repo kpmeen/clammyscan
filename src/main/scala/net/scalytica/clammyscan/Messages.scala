@@ -18,13 +18,3 @@ case class InvalidFilename(message: String) extends ClamError {
 }
 
 case class FileOk()
-
-class ClamIOException(
-  message: String,
-  cause: Throwable
-) extends Exception(message, cause) {
-
-  def this(message: String) = this(message, null) //scalastyle:ignore
-
-  def this(cause: Throwable) = this("", cause)
-}

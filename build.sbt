@@ -8,6 +8,8 @@ organization := "net.scalytica"
 
 licenses +=("MIT", url("http://opensource.org/licenses/MIT"))
 
+scalaVersion := "2.11.8"
+
 scalacOptions ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
   "-feature", // Emit warning and location for usages of features that should be imported explicitly.
@@ -27,9 +29,10 @@ scalacOptions ++= Seq(
 
 scalacOptions in Test ++= Seq("-Yrangepos")
 
-scalaVersion := "2.11.8"
-
 publishArtifact in Test := false
+
+coverageMinimum := 80
+coverageFailOnMinimum := true
 
 scalariformSettings
 
@@ -37,8 +40,6 @@ ScalariformKeys.preferences := ScalariformKeys.preferences.value
   .setPreference(FormatXml, false)
   .setPreference(DoubleIndentClassDeclaration, false)
   .setPreference(SpacesAroundMultiImports, false)
-
-coverageExcludedPackages := "<empty>;Messages.*;ClamCommands"
 
 resolvers ++= Seq(
   Resolver.typesafeRepo("releases"),
@@ -52,7 +53,8 @@ val playVersion = "2.5.4"
 val akkaVersion = "2.4.4"
 val logbackVersion = "1.1.7"
 val slf4jVersion = "1.7.21"
-val scalaTestVersion = "2.2.6"
+val stestVersion = "2.2.6"
+val stestPlusVersion = "1.5.0"
 
 libraryDependencies ++= Seq(
   // Play!
@@ -71,7 +73,7 @@ libraryDependencies ++= Seq(
   "ch.qos.logback" % "logback-core" % logbackVersion,
   "ch.qos.logback" % "logback-classic" % logbackVersion,
   // ScalaTest
-  "org.scalactic" %% "scalactic" % scalaTestVersion,
-  "org.scalatest" %% "scalatest" % scalaTestVersion % "test",
-  "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.0" % "test"
+  "org.scalactic" %% "scalactic" % stestVersion,
+  "org.scalatest" %% "scalatest" % stestVersion % "test",
+  "org.scalatestplus.play" %% "scalatestplus-play" % stestPlusVersion % "test"
 )
