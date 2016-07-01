@@ -142,7 +142,8 @@ trait ClammyContext extends WordSpecLike
 
   def fakeReq(
     fileSource: FileSource,
-    contentType: Option[String] = None
+    contentType: Option[String] = None,
+    alternativeFilename: Option[String] = None
   )(implicit ctx: Context): FakeRequest[AnyContentAsMultipartFormData] = {
     implicit val mat = ctx.materializer
 
@@ -154,7 +155,7 @@ trait ClammyContext extends WordSpecLike
       dataParts = Map.empty,
       files = Seq(FilePart(
         key = "file",
-        filename = fileSource.fname,
+        filename = alternativeFilename.getOrElse(fileSource.fname),
         contentType = contentType,
         ref = Await.result(f, 10 seconds)
       )),

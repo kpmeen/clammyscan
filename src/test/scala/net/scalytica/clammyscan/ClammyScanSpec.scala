@@ -116,6 +116,23 @@ class ClammyScanSpec extends ClammyContext with TestResources {
 
           validateResult(result, OK, None)(ctx)
         }
+
+      "reject the file if the name doesn't comply to filename rules" in
+        withScanAction(scanTmpAction) { implicit ctx =>
+          val bad = "some:<bad>?filename"
+          val request = fakeReq(
+            fileSource = cleanFile,
+            contentType = Some("application/pdf"),
+            alternativeFilename = Some(bad)
+          )
+          val result = ctx.awaitResult(request)
+
+          validateResult(
+            result,
+            BAD_REQUEST,
+            Some(s"""{"message":"Filename $bad contains illegal characters"}""")
+          )(ctx)
+        }
     }
   }
   "A ClammyScan with removeInfected set to false" which {
