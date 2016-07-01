@@ -22,7 +22,7 @@ resolvers += "JCenter" at "http://jcenter.bintray.com/"
 And the dependency for the ClammyScan library:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.4"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.5"
 ```
 
 ## Configuration
