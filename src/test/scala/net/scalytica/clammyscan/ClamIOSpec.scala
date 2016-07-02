@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import com.typesafe.config.ConfigFactory
-import net.scalytica.clammyscan.TestHelpers._
 import org.scalatest._
 
 import scala.concurrent.Await
@@ -37,12 +36,7 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
           eicarStrSource runWith clamIO.scan("test-file"),
           10 seconds
         )
-        res.isLeft shouldBe true
-        res.left.get match {
-          case vf: VirusFound => Succeeded
-          case ce => unexpectedClamError(ce)
-        }
-
+        res shouldBe a[VirusFound]
       }
     }
 
@@ -52,9 +46,7 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
           cleanFile.source runWith clamIO.scan(cleanFile.fname),
           10 seconds
         )
-
-        res.isRight shouldBe true
-        res.right.get shouldBe FileOk()
+        res shouldBe FileOk
       }
     }
 
@@ -64,12 +56,7 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
           eicarZipFile.source runWith clamIO.scan(eicarZipFile.fname),
           10 seconds
         )
-
-        res.isLeft shouldBe true
-        res.left.get match {
-          case vf: VirusFound => Succeeded
-          case ce => unexpectedClamError(ce)
-        }
+        res shouldBe a[VirusFound]
       }
     }
 

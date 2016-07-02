@@ -104,17 +104,17 @@ class ClamIO(
         )
       }
 
-      def validate: ClamResponse = {
+      def validate: ScanResponse = {
         val res = result.trim
         if (ClamProtocol.okResponse.equals(res)) {
           logger.debug(s"No viruses found in $filename")
-          Right(FileOk())
+          FileOk
         } else if (ClamProtocol.unknownCommand.equals(res)) {
           logger.warn(s"Command not recognized: $res")
-          Left(ScanError(result))
+          ScanError(result)
         } else {
           logger.warn(s"Virus detected in $filename - $res")
-          Left(VirusFound(res))
+          VirusFound(res)
         }
       }
     }
@@ -162,7 +162,7 @@ object ClamIO {
   /**
    * Returns a cancelled ClamSink.
    */
-  def cancelled(res: ClamResponse)(
+  def cancelled(res: ScanResponse)(
     implicit
     ec: ExecutionContext,
     as: ActorSystem,

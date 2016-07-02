@@ -1,6 +1,8 @@
 package net.scalytica.clammyscan
 
-sealed abstract class ClamError {
+sealed trait ScanResponse
+
+sealed abstract class ClamError extends ScanResponse {
   val message: String
   val isVirus: Boolean
 }
@@ -17,4 +19,6 @@ case class InvalidFilename(message: String) extends ClamError {
   val isVirus = false
 }
 
-case class FileOk()
+case object FileOk extends ScanResponse
+
+case class ScannedBody[A](scanResponse: ScanResponse, maybeRef: Option[A])

@@ -18,9 +18,12 @@ import play.core.parsers.Multipart.FileInfo
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
- * Enables streaming upload of files/attachments with parallel AV scanning.
+ * Enables parallel AV scanning of files/attachments being uploaded.
  */
 trait ClammyScan {
+  self =>
+
+  protected val cbpLogger = Logger(self.getClass)
 
   val system: ActorSystem
   val materializer: Materializer
@@ -35,7 +38,7 @@ trait ClammyScan {
    * @return
    */
   def scan[A](
-    save: (String, Option[String]) => SaveSink[A],
+    save: ToSaveSink[A],
     remove: A => Unit
   )(implicit ec: ExecutionContext): ClamParser[A]
 
@@ -53,7 +56,7 @@ trait ClammyScan {
 
 }
 
-class ClammyScanParser @Inject() (
+abstract class BaseScanParser(
   sys: ActorSystem,
   mat: Materializer,
   config: Configuration
@@ -64,27 +67,60 @@ class ClammyScanParser @Inject() (
 
   val clamConfig = new ClamConfig(config)
 
-  import clamConfig._
-
-  val cbpLogger = Logger(this.getClass)
+  /**
+   * Will validate the filename based on the configured regular expression
+   * defined in application.conf.
+   */
+  protected def fileNameValid(filename: String): Boolean =
+    clamConfig.validFilenameRegex.forall(regex =>
+      regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
+        case Some(m) => false
+        case _ => true
+      })
 
   /**
-   * Sets up a `ClamSink` that is ready to receive the incoming stream. Or one
-   * that is cancelled with success status.
+   * Specifically sets up a `ClamSink` that is ready to receive the incoming
+   * stream. Or one that is cancelled with success status.
    *
    * Controlled by the config property `clammyscan.scanDisabled`.
    */
-  private def clammySink(
+  protected def clammySink(
     filename: String
   )(implicit ec: ExecutionContext) = {
-    if (!scanDisabled) {
-      ClamIO(host, port, timeout).scan(filename)
+    if (!clamConfig.scanDisabled) {
+      ClamIO(
+        host = clamConfig.host,
+        port = clamConfig.port,
+        timeout = clamConfig.timeout
+      ).scan(filename)
     } else {
       // Scanning disabled
       cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
-      ClamIO.cancelled(Right(FileOk()))
+      ClamIO.cancelled(FileOk)
     }
   }
+
+  /**
+   * Determines the two sinks that are to be used for processing the stream.
+   * The function will try to validate the filename against the
+   * `clammyscan.validFilenameRegex` property if configured. In the case of an
+   * invalid filename, two cancelled sinks are returned.
+   */
+  protected def sinks[A](filename: String, contentType: Option[String])(
+    save: ToSaveSink[A]
+  )(implicit ec: ExecutionContext): (ClamSink, SaveSink[A]) =
+    if (fileNameValid(filename)) {
+      (clammySink(filename), save(filename, contentType))
+    } else {
+      val errSave = Sink.cancelled[ByteString].mapMaterializedValue { _ =>
+        Future.successful(None)
+      }
+      val errScan = ClamIO.cancelled(
+        InvalidFilename(s"Filename $filename contains illegal characters")
+      )
+
+      (errScan, errSave)
+    }
 
   /**
    *
@@ -92,8 +128,8 @@ class ClammyScanParser @Inject() (
   protected def broadcastGraph[A](
     c: ClamSink,
     s: SaveSink[A]
-  )(implicit e: ExecutionContext): Sink[ByteString, Future[TupledResponse[A]]] =
-    Sink.fromGraph[ByteString, (Future[ClamResponse], Future[Option[A]])] {
+  )(implicit e: ExecutionContext): Sink[ByteString, Future[ScannedBody[A]]] =
+    Sink.fromGraph[ByteString, (Future[ScanResponse], Future[Option[A]])] {
       GraphDSL.create(c, s)((cs, ss) => (cs, ss)) { implicit b => (cs, ss) =>
         import GraphDSL.Implicits._
 
@@ -106,34 +142,64 @@ class ClammyScanParser @Inject() (
     }.mapMaterializedValue { mat =>
       for {
         cr <- mat._1.recover {
-          case ClammyException(err) => Left(err)
-          case stex: StreamTcpException => Left(ScanError(stex.getMessage))
+          case ClammyException(err) => err
+          case stex: StreamTcpException => ScanError(stex.getMessage)
           case ex =>
             cbpLogger.error("", ex)
-            Left(ScanError(unhandledException))
+            ScanError(unhandledException)
         }
         sr <- mat._2
-      } yield (cr, sr)
+      } yield ScannedBody(cr, sr)
     }
 
   /**
-   *
+   * Function specifically for handling the ClamError cases in the
+   * validation step. The logic here is highly dependent on how the
+   * parser is configured.
    */
-  protected def sinks[A](filename: String, contentType: Option[String])(
-    save: (String, Option[String]) => SaveSink[A]
-  )(implicit ec: ExecutionContext): (ClamSink, SaveSink[A]) =
-    if (fileNameValid(filename)) {
-      (clammySink(filename), save(filename, contentType))
-    } else {
-      val errSave = Sink.cancelled[ByteString].mapMaterializedValue { _ =>
-        Future.successful(None)
-      }
-      val errScan = ClamIO.cancelled(Left(
-        InvalidFilename(s"Filename $filename contains illegal characters")
-      ))
+  protected def handleError[A](
+    fud: MultipartFormData[ScannedBody[A]],
+    err: ClamError
+  )(
+    remove: => Unit
+  )(implicit ec: ExecutionContext): Future[Either[Result, ClamMultipart[A]]] = {
+    Future.successful {
+      err match {
+        case vf: VirusFound =>
+          // We have encountered the dreaded VIRUS...run awaaaaay
+          if (clamConfig.canRemoveInfectedFiles) {
+            remove
+            Left(Results.NotAcceptable(
+              Json.obj("message" -> vf.message)
+            ))
+          } else {
+            // We cannot remove the uploaded file, so we return the parsed
+            // result back to the controller to let it handle it.
+            Right(fud)
+          }
 
-      (errScan, errSave)
+        case clamError =>
+          if (clamConfig.canRemoveOnError) remove
+          if (clamConfig.shouldFailOnError) {
+            Left(Results.BadRequest(
+              Json.obj("message" -> clamError.message)
+            ))
+          } else {
+            Right(fud)
+          }
+      }
     }
+  }
+}
+
+/**
+ * Default implementation of ClammyScan
+ */
+class ClammyScanParser @Inject() (
+  sys: ActorSystem,
+  mat: Materializer,
+  config: Configuration
+) extends BaseScanParser(sys, mat, config) {
 
   /**
    *
@@ -144,10 +210,10 @@ class ClammyScanParser @Inject() (
    * @return
    */
   def scan[A](
-    save: (String, Option[String]) => SaveSink[A],
+    save: ToSaveSink[A],
     remove: A => Unit
   )(implicit ec: ExecutionContext): ClamParser[A] = {
-    multipartFormData[TupledResponse[A]] {
+    multipartFormData[ScannedBody[A]] {
       case FileInfo(partName, filename, contentType) =>
         val theSinks = sinks(filename, contentType)(save)
         val comb = broadcastGraph(theSinks._1, theSinks._2)
@@ -156,15 +222,15 @@ class ClammyScanParser @Inject() (
           MultipartFormData.FilePart(partName, filename, contentType, ref)
         }
 
-    }.validateM((data: MultipartFormData[TupledResponse[A]]) => {
-      data.files.headOption.map(hf => hf.ref._1 match {
-        case Left(err) =>
+    }.validateM((data: ClamMultipart[A]) => {
+      data.files.headOption.map(hf => hf.ref.scanResponse match {
+        case err: ClamError =>
           // Ooops...there seems to be a problem with the clamd scan result.
-          val maybeFile = data.files.headOption.flatMap(_.ref._2)
+          val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
           handleError(data, err) {
             maybeFile.foreach(f => remove(f))
           }
-        case Right(ok) =>
+        case FileOk =>
           Future.successful(Right(data))
 
       }).getOrElse {
@@ -197,56 +263,5 @@ class ClammyScanParser @Inject() (
       },
       remove = _ => cbpLogger.debug("Only scanning, no file to remove")
     )
-
-  /**
-   * Function specifically for handling the ClamError cases in the
-   * validation step. The logic here is highly dependent on how the
-   * parser is configured.
-   */
-  protected def handleError[A](
-    fud: MultipartFormData[TupledResponse[A]],
-    err: ClamError
-  )(remove: => Unit)(
-    implicit
-    ec: ExecutionContext
-  ): Future[Either[Result, MultipartFormData[TupledResponse[A]]]] = {
-    Future.successful {
-      err match {
-        case vf: VirusFound =>
-          // We have encountered the dreaded VIRUS...run awaaaaay
-          if (canRemoveInfectedFiles) {
-            remove
-            Left(Results.NotAcceptable(
-              Json.obj("message" -> vf.message)
-            ))
-          } else {
-            // We cannot remove the uploaded file, so we return the parsed
-            // result back to the controller to let it handle it.
-            Right(fud)
-          }
-
-        case clamError =>
-          if (canRemoveOnError) remove
-          if (shouldFailOnError) {
-            Left(Results.BadRequest(
-              Json.obj("message" -> clamError.message)
-            ))
-          } else {
-            Right(fud)
-          }
-      }
-    }
-  }
-
-  /**
-   * Will validate the filename based on the configured regular expression
-   * defined in application.conf.
-   */
-  protected def fileNameValid(filename: String): Boolean =
-    validFilenameRegex.forall(regex =>
-      regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
-        case Some(m) => false
-        case _ => true
-      })
 
 }

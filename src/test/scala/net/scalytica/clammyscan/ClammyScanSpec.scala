@@ -8,7 +8,7 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class ClammyScanSpec extends ClammyContext with TestResources {
+class ClammyScanSpec extends ClammyTestContext with TestResources {
 
   /**
    * IMPORTANT: This function relies heavily on the validation done in the

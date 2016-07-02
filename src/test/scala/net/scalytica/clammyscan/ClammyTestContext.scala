@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 /**
  * Base spec to test the ClammyScan parsers through `EssentialAction`.
  */
-trait ClammyContext extends WordSpecLike
+trait ClammyTestContext extends WordSpecLike
   with MustMatchers {
 
   val baseExtraConfig: Map[String, Any] = Map(
@@ -71,7 +71,7 @@ trait ClammyContext extends WordSpecLike
     }
   }
 
-  def scanner[A](scan: ClamParser[A])(f: (TupledResponse[A]) => Result) = // scalastyle:ignore
+  def scanner[A](scan: ClamParser[A])(f: (ScannedBody[A]) => Result) = // scalastyle:ignore
     Action(scan) { req =>
       req.body.files.headOption.map { fp =>
         f(fp.ref)
@@ -82,60 +82,55 @@ trait ClammyContext extends WordSpecLike
 
   def scanOnlyAction(parser: ClammyScanParser): EssentialAction = {
     scanner[Unit](parser.scanOnly) {
-      case tr: TupledResponse[Unit] =>
-        tr._1 match {
-          case Right(ok) =>
-            tr._2.map { _ =>
+      case tr: ScannedBody[Unit] =>
+        tr.scanResponse match {
+          case FileOk =>
+            tr.maybeRef.map { _ =>
               Results.ExpectationFailed(
                 Json.obj("message" -> "File should not be persisted")
               )
             }.getOrElse(Results.Ok)
 
-          case Left(err) =>
-            err match {
-              case vf: VirusFound =>
-                Results.NotAcceptable(Json.obj("message" -> err.message))
+          case vf: VirusFound =>
+            Results.NotAcceptable(Json.obj("message" -> vf.message))
 
-              case ce =>
-                Results.BadRequest(Json.obj("message" -> ce.message))
-            }
+          case ce: ClamError =>
+            Results.BadRequest(Json.obj("message" -> ce.message))
         }
     }
   }
 
   def scanTmpAction(parser: ClammyScanParser): EssentialAction = {
     scanner[TemporaryFile](parser.scanWithTmpFile) {
-      case tr: TupledResponse[TemporaryFile] =>
-        tr._1 match {
-          case Right(ok) =>
-            tr._2.map { f =>
+      case tr: ScannedBody[TemporaryFile] =>
+        tr.scanResponse match {
+          case FileOk =>
+            tr.maybeRef.map { f =>
               Results.Ok
             }.getOrElse(Results.ExpectationFailed(
               Json.obj("message" -> "File should be persisted")
             ))
 
-          case Left(err) =>
-            err match {
-              case vf: VirusFound =>
-                if (parser.clamConfig.canRemoveInfectedFiles)
-                  tr._2.map { _ =>
-                    Results.ExpectationFailed(
-                      Json.obj("message" -> "File should not be persisted")
-                    )
-                  }.getOrElse(Results.NotAcceptable(
-                    Json.obj("message" -> err.message)
-                  ))
-                else
-                  tr._2.map { _ =>
-                    Results.NotAcceptable(Json.obj("message" -> err.message))
-                  }.getOrElse {
-                    Results.ExpectationFailed(
-                      Json.obj("message" -> "File should be persisted")
-                    )
-                  }
+          case vf: VirusFound =>
+            if (parser.clamConfig.canRemoveInfectedFiles)
+              tr.maybeRef.map { _ =>
+                Results.ExpectationFailed(
+                  Json.obj("message" -> "File should not be persisted")
+                )
+              }.getOrElse(Results.NotAcceptable(
+                Json.obj("message" -> vf.message)
+              ))
+            else
+              tr.maybeRef.map { _ =>
+                Results.NotAcceptable(Json.obj("message" -> vf.message))
+              }.getOrElse {
+                Results.ExpectationFailed(
+                  Json.obj("message" -> "File should be persisted")
+                )
+              }
 
-              case ce => Results.BadRequest(Json.obj("message" -> ce.message))
-            }
+          case ce: ClamError =>
+            Results.BadRequest(Json.obj("message" -> ce.message))
         }
     }
   }

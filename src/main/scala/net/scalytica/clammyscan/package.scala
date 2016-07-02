@@ -9,11 +9,14 @@ import scala.concurrent.Future
 // $COVERAGE-OFF$No need for coverage here...
 package object clammyscan {
 
-  type ClamResponse = Either[ClamError, FileOk]
-  type TupledResponse[A] = (ClamResponse, Option[A])
-  type ClamSink = Sink[ByteString, Future[ClamResponse]]
+  type ClamMultipart[A] = MultipartFormData[ScannedBody[A]]
+
+  type ClamSink = Sink[ByteString, Future[ScanResponse]]
   type SaveSink[A] = Sink[ByteString, Future[Option[A]]]
-  type ClamParser[A] = BodyParser[MultipartFormData[TupledResponse[A]]]
+
+  type ToSaveSink[A] = (String, Option[String]) => SaveSink[A]
+
+  type ClamParser[A] = BodyParser[ClamMultipart[A]]
 
   private[clammyscan] val connectionError = (filename: String) =>
     s"Failed to scan $filename with clamd because of a connection error. " +
