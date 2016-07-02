@@ -8,14 +8,14 @@ object ClamProtocol {
   val okResponse = "stream: OK"
   val maxSizeExceededResponse = "INSTREAM size limit exceeded. ERROR"
 
-  sealed trait ByteStrCommand {
+  sealed trait Command {
     val str: String
     lazy val cmd: ByteString = ByteString.fromString(str)
   }
 
-  object ByteStrCommand {
+  object Command {
 
-    def byteStringToCmd(bs: ByteString): Option[ByteStrCommand] = {
+    def byteStringToCmd(bs: ByteString): Option[Command] = {
       bs.utf8String match {
         case Instream.str => Some(Instream)
         case Ping.str => Some(Ping)
@@ -29,19 +29,19 @@ object ClamProtocol {
 
   }
 
-  case object Instream extends ByteStrCommand {
+  case object Instream extends Command {
     val str = "zINSTREAM\u0000"
   }
 
-  case object Ping extends ByteStrCommand {
+  case object Ping extends Command {
     val str = "zPING\u0000"
   }
 
-  case object Status extends ByteStrCommand {
+  case object Status extends Command {
     val str = "zSTATS\u0000"
   }
 
-  case object Version extends ByteStrCommand {
+  case object Version extends Command {
     val str = "VERSION"
   }
 

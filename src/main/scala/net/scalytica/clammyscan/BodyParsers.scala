@@ -30,12 +30,9 @@ trait ClammyScan {
   val clamConfig: ClamConfig
 
   /**
-   *
-   * @param save
-   * @param remove
-   * @param ec
-   * @tparam A
-   * @return
+   * Scans a file for virus and persists it with the `save` function.
+   * By default, any infected files will be immediately removed using the
+   * `remove` function.
    */
   def scan[A](
     save: ToSaveSink[A],
@@ -43,14 +40,12 @@ trait ClammyScan {
   )(implicit ec: ExecutionContext): ClamParser[A]
 
   /**
-   * Scans file for virus and buffers to a temporary file. Temp file is
-   * removed if file is infected.
+   * Scans file for virus and writes to a temporary file.
    */
   def scanWithTmpFile(implicit e: ExecutionContext): ClamParser[TemporaryFile]
 
   /**
-   * Mostly for convenience this. If you need a service for just scanning
-   * a file for infections, this is it.
+   * Scans the file for virus without persisting.
    */
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit]
 
@@ -123,7 +118,8 @@ abstract class BaseScanParser(
     }
 
   /**
-   *
+   * Graph that broadcasts each chunk from the incoming stream to both sinks,
+   * before materializing the result from both into a `ScannedBody`.
    */
   protected def broadcastGraph[A](
     c: ClamSink,
@@ -193,7 +189,7 @@ abstract class BaseScanParser(
 }
 
 /**
- * Default implementation of ClammyScan
+ * Default implementation of the ClammyScan parsers
  */
 class ClammyScanParser @Inject() (
   sys: ActorSystem,
@@ -201,14 +197,6 @@ class ClammyScanParser @Inject() (
   config: Configuration
 ) extends BaseScanParser(sys, mat, config) {
 
-  /**
-   *
-   * @param save
-   * @param remove
-   * @param ec
-   * @tparam A
-   * @return
-   */
   def scan[A](
     save: ToSaveSink[A],
     remove: A => Unit

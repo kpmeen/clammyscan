@@ -73,7 +73,7 @@ class ClamIO(
         commandInitiated = true
       }
 
-      if (bs != StreamCompleted && !ByteStrCommand.isCommand(bs))
+      if (bs != StreamCompleted && !Command.isCommand(bs))
         builder += unsignedInt(bs.length)
 
       (builder += bs).result()
