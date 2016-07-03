@@ -2,14 +2,11 @@
 
 # ClammyScan
 
-ClammyScan is a Play! Framework Module that enables anti-virus scanning of streaming file uploads. It does this by exposing a few `BodyParser`s that can be used in your controller actions.
+ClammyScan is a Play! Framework Module that enables parallel anti-virus scanning of file upload streams.
 
-If the file is infected, a `HTTP 406 NotAcceptable` is returned with a message describing the reason. If the file is OK, the Controller will have the file part available for further processing in the request.
+Traditionally, AV scanning is handled by some background service running on the machine(s) where files are stored. And files are typically scanned after they've been persisted. If the AV on the file server detects an infected file, it will typically be placed in a quarantine of some sort. In many cases this can cause broken file references and/or data inconsistencies.
 
-### Why?
-Traditionally, AV scanning is handled by some service running on the machine(s) where files are stored. And files are typically scanned _after_ they've been persisted. In many cases this can result in data corruption. The reason for this is that the services that process the file uploads write metadata, location references, etc to some database. If the AV on the file server detects an infected file, it will typically be placed in a quarantine of some sort. But the file service and database are unaware of what just happened. So now the DB contains broken file references. 
-
-With ClammyScan this can be avoided since the file is scanned while it's being uploaded. If any infections are found, the system is able to react in a way that avoid broken DB references etc. And the users will be notified that they are trying to upload an infected file.
+With ClammyScan this risk can be reduced since the file is scanned while it's being uploaded. This gives you control more control on how to react when a user tries to upload an infected file.
 
 
 ## Usage
@@ -17,15 +14,19 @@ With ClammyScan this can be avoided since the file is scanned while it's being u
 Add the dependency for ClammyScan to your `build.sbt`:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.6"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.7"
 ```
+
+Or you can clone the repository and build from source.
 
 ## Configuration
 
-### ClamAV configuration
-Please refer to the official ClamAV documentation.
+### ClamAV
 
-### ClammyScan configuration
+Please refer to the official ClamAV [documentation](https://www.clamav.net/documents/installing-clamav) to ensure you have a properly configured clamd installation.
+
+### ClammyScan
+
 ClammyScan has some configurable parameters. At the moment the configurable parameters are as follows, and should be located in the application.conf file:
 
 ```bash
@@ -56,18 +57,20 @@ clammyscan {
 }
 ```
 
-The properties should be fairly self-explanatory.
+
 
 ## Available BodyParsers
 
+Currently, the BodyParsers only support `multipart/form-data` based file uploads.
+
 ### scan
 
-Takes two arguments. A function for saving the file content in parallel with the AV scan. And a function for handling removal of the file in case it is infected. This is the most powerful of the available parsers.
+Takes two arguments. A function for saving the file content in parallel with the AV scan. And a function for handling removal of the file in case it is infected. This is the most powerful of the currently available parsers.
 
 This is also the parser to use if you need to provide custom handling for saving the file.
 
 ### scanOnly
-Is a convenience that just scans your input stream and returns a result without persisting the file in any way.
+Scans your file and returns a result without persisting the file in any way.
 
 ```scala
   def scanFile = Action(clammyScan.scanOnly) { request =>
@@ -90,7 +93,7 @@ Is a convenience that just scans your input stream and returns a result without 
 
 ### scanWithTmpFile
 
-Will, as the name implies, create a temp file available for later processing in the controller.
+Scans your file and writes it to a temporary file, available for later processing in the controller.
 
 ```scala
   def scanTempFile = Action(clammyScan.scanWithTmpFile) { request =>
@@ -109,9 +112,7 @@ Will, as the name implies, create a temp file available for later processing in 
   }
 ```
 
-
-
-For a full example of how to use the parsers, please have a look at the play application in the [sample](sample) directory.
+For a full example application using the parsers, please have a look in the [sample](sample) directory.
 
 
 # Contributing
@@ -120,4 +121,16 @@ Any contributions and suggestions are very welcome!
 
 ## Building and Testing
 
-Currently the tests depend on the presence of a clamd instance running. For local testing, change the configuration in conf/application.conf to point to a running installation. Alternatively, you can start up the following Docker container: `docker pull kpmeen/docker-clamav`
+Currently the tests depend on the presence of a clamd instance running. For local testing, change the configuration in conf/application.conf to point to a running installation. Alternatively, you can start up a Docker container using the following commands: 
+
+```bash
+docker pull kpmeen/docker-clamav
+
+docker run --name clammy -d -p 3310:3310 kpmeen/docker-clamav
+
+# And to keep an eye on the clamd log
+docker exec -it clammy tail -300f /var/log/clamav/clamav.log
+```
+
+
+
