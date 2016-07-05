@@ -47,7 +47,13 @@ trait ClammyScan {
   /**
    * Scans the file for virus without persisting.
    */
-  def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit]
+  def scanOnly(implicit e: ExecutionContext): ClamParser[Unit]
+
+  def ping(implicit e: ExecutionContext): Future[String]
+
+  def version(implicit e: ExecutionContext): Future[String]
+
+  def stats(implicit e: ExecutionContext): Future[String]
 
 }
 
@@ -186,12 +192,43 @@ abstract class BaseScanParser(
       }
     }
   }
+
+  /**
+   * Execute a ping against clamd
+   */
+  def ping(implicit e: ExecutionContext): Future[String] =
+    ClamIO(
+      host = clamConfig.host,
+      port = clamConfig.port,
+      timeout = clamConfig.timeout
+    ).ping
+
+  /**
+   * Get the clamd version string
+   */
+  def version(implicit e: ExecutionContext): Future[String] =
+    ClamIO(
+      host = clamConfig.host,
+      port = clamConfig.port,
+      timeout = clamConfig.timeout
+    ).version
+
+  /**
+   * Get the clamd stats
+   */
+  def stats(implicit e: ExecutionContext): Future[String] =
+    ClamIO(
+      host = clamConfig.host,
+      port = clamConfig.port,
+      timeout = clamConfig.timeout
+    ).stats
+
 }
 
 /**
  * Default implementation of the ClammyScan parsers
  */
-class ClammyScanParser @Inject() (
+class ClammyScanParser @Inject()(
   sys: ActorSystem,
   mat: Materializer,
   config: Configuration
@@ -234,21 +271,21 @@ class ClammyScanParser @Inject() (
   def scanWithTmpFile(implicit e: ExecutionContext): ClamParser[TemporaryFile] =
     scan[TemporaryFile](
       save = {
-      (fname, ctype) =>
-        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-        FileIO.toFile(tempFile.file).mapMaterializedValue { fio =>
-          fio.map(_ => Option(tempFile))
-        }
-    },
+        (fname, ctype) =>
+          val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
+          FileIO.toFile(tempFile.file).mapMaterializedValue { fio =>
+            fio.map(_ => Option(tempFile))
+          }
+      },
       remove = tmpFile => tmpFile.clean()
     )
 
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] =
     scan[Unit](
       save = (f, c) =>
-      Sink.cancelled[ByteString].mapMaterializedValue { notUsed =>
-        Future.successful(None)
-      },
+        Sink.cancelled[ByteString].mapMaterializedValue { notUsed =>
+          Future.successful(None)
+        },
       remove = _ => cbpLogger.debug("Only scanning, no file to remove")
     )
 

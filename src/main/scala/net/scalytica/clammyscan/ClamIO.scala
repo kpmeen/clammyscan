@@ -69,7 +69,7 @@ class ClamIO(
    * a sequence of 4 bytes with the length of the following chunk as an
    * unsigned integer.
    */
-  private def enrich(implicit as: ActorSystem) = // scalastyle:ignore
+  private def stream(implicit as: ActorSystem) = // scalastyle:ignore
     Flow[ByteString].mapConcat { bs =>
       val builder = immutable.Seq.newBuilder[ByteString]
       if (!commandInitiated) {
@@ -143,15 +143,37 @@ class ClamIO(
    * @param filename the name of the file to be scanned
    * @return a complete `ClamSink`
    */
-  def scan(filename: String)(
-    implicit
-    ec: ExecutionContext,
-    system: ActorSystem,
-    mat: Materializer
-  ): ClamSink = {
+  def scan(
+    filename: String
+  )(implicit e: ExecutionContext, s: ActorSystem, m: Materializer): ClamSink = {
     logger.debug(s"Preparing to scan file $filename with clamd...")
-    (enrich via connection).toMat(sink(filename))(Keep.right)
+    (stream via connection).toMat(sink(filename))(Keep.right)
   }
+
+  // Helper for executing general commands against clamd
+  private def executeCommand(
+    command: Command
+  )(implicit e: ExecutionContext, s: ActorSystem, m: Materializer) =
+    (Source.single(command.cmd) via connection)
+      .runFold[String]("")((state, chunk) => s"$state${chunk.utf8String}")
+
+  /**
+   * Sends a PING command to clamd, expecting a PONG in response
+   */
+  def ping(implicit e: ExecutionContext, s: ActorSystem, m: Materializer): Future[String] = // scalastyle:ignore
+    executeCommand(Ping)
+
+  /**
+   * Ask clamd for the version string
+   */
+  def version(implicit e: ExecutionContext, s: ActorSystem, m: Materializer): Future[String] = // scalastyle:ignore
+    executeCommand(Version)
+
+  /**
+   * Ask clamd for its internal stats
+   */
+  def stats(implicit e: ExecutionContext, s: ActorSystem, m: Materializer): Future[String] = // scalastyle:ignore
+    executeCommand(Status)
 
 }
 

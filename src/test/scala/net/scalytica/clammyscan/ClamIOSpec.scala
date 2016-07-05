@@ -28,9 +28,9 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
 
   val clamIO = ClamIO(conf.host, conf.port, conf.timeout)
 
-  "Using ClamIO" when {
+  "A ClamIO" which {
 
-    "sending the EICAR string as a stream" should {
+    "receives the EICAR string as a stream" should {
       "result in clamav finding a virus" in {
         val res = Await.result(
           eicarStrSource runWith clamIO.scan("test-file"),
@@ -40,7 +40,7 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
       }
     }
 
-    "sending a clean file as a stream" should {
+    "receives a clean file as a stream" should {
       "result in a successful scan without errors" in {
         val res = Await.result(
           cleanFile.source runWith clamIO.scan(cleanFile.fname),
@@ -50,7 +50,7 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
       }
     }
 
-    "sending a zip file containing the EICAR string as a stream" should {
+    "receives a zip file containing the EICAR string as a stream" should {
       "result in a virus being found" in {
         val res = Await.result(
           eicarZipFile.source runWith clamIO.scan(eicarZipFile.fname),
@@ -60,6 +60,29 @@ class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
       }
     }
 
+    "receives a PING command" should {
+      "result in a PONG" in {
+        Await.result(clamIO.ping, 10 seconds) === "PONG"
+      }
+    }
+
+    "receives a VERSION command" should {
+      "result in the clamd version string" in {
+        Await.result(clamIO.version, 10 seconds) should startWith("ClamAV")
+      }
+    }
+
+    "receives a STATUS command" should {
+      "result in the clamd status message" in {
+        val res = Await.result(clamIO.stats, 10 seconds)
+        res should include("POOLS")
+        res should include("STATE: VALID PRIMARY")
+        res should include("THREADS")
+        res should include("QUEUE")
+        res should include("MEMSTATS")
+        res should include("END")
+      }
+    }
   }
 
 }

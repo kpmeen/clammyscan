@@ -19,18 +19,17 @@ object ClamProtocol {
    * Definition commands that can be used against clamd.
    */
   sealed trait Command {
-    val str: String
-    lazy val cmd: ByteString = ByteString.fromString(str)
+    val cmd: ByteString
   }
 
   object Command {
 
     def byteStringToCmd(bs: ByteString): Option[Command] = {
-      bs.utf8String match {
-        case Instream.str => Some(Instream)
-        case Ping.str => Some(Ping)
-        case Status.str => Some(Status)
-        case Version.str => Some(Version)
+      bs match {
+        case Instream.cmd => Some(Instream)
+        case Ping.cmd => Some(Ping)
+        case Status.cmd => Some(Status)
+        case Version.cmd => Some(Version)
         case _ => None
       }
     }
@@ -43,28 +42,28 @@ object ClamProtocol {
    * Command for initializing stream based AV scanning
    */
   case object Instream extends Command {
-    val str = s"zINSTREAM$unicodeNull"
+    val cmd = ByteString.fromString(s"zINSTREAM$unicodeNull")
   }
 
   /**
    * Command for sending clamd a ping
    */
   case object Ping extends Command {
-    val str = s"zPING$unicodeNull"
+    val cmd = ByteString.fromString(s"zPING$unicodeNull")
   }
 
   /**
    * Command for retrieving a status message from clamd
    */
   case object Status extends Command {
-    val str = s"zSTATS$unicodeNull"
+    val cmd = ByteString.fromString(s"zSTATS$unicodeNull")
   }
 
   /**
    * Command for retrieving the version of the clamd
    */
   case object Version extends Command {
-    val str = "VERSION"
+    val cmd = ByteString.fromString("VERSION")
   }
 
 }
