@@ -17,10 +17,14 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
+ * Class that provides a way of communicating with `clamd` using akka-streams.
+ * It Flows through akka-tcp that sends all chunks directly to clamd. The
+ * response is finally consumed by a Sink implementation that maps the end
+ * value to a ScanResult.
  *
- * @param host
- * @param port
- * @param timeout
+ * @param host    the host where clamd is running
+ * @param port    the port number where clamd is exposed
+ * @param timeout how long to wait before timing out the connection
  */
 class ClamIO(
   host: String,
@@ -35,10 +39,11 @@ class ClamIO(
   /**
    * Defines the TCP socket connection to ClamAV.
    *
-   * @param as
-   * @return
+   * @param as ActorSystem to run the connection on.
+   * @return a Future of a TCP Connection
+   *         {{{Flow[ByteString, _, Future[OutgoingConnection]][ByteString]}}}
    */
-  def connection(implicit as: ActorSystem) = // scalastyle:ignore
+  private def connection(implicit as: ActorSystem) = // scalastyle:ignore
     Tcp().outgoingConnection(
       remoteAddress = inetAddr,
       connectTimeout = timeout,
@@ -64,7 +69,7 @@ class ClamIO(
    * a sequence of 4 bytes with the length of the following chunk as an
    * unsigned integer.
    */
-  def enrich(implicit as: ActorSystem) = // scalastyle:ignore
+  private def enrich(implicit as: ActorSystem) = // scalastyle:ignore
     Flow[ByteString].mapConcat { bs =>
       val builder = immutable.Seq.newBuilder[ByteString]
       if (!commandInitiated) {
@@ -85,11 +90,15 @@ class ClamIO(
     }
 
   /**
+   * Sink implementation that yields a ScanResponse when it's completed.
    *
-   * @param filename
-   * @return
+   * @param filename String with the name of the file being scanned
+   * @param ec       an implicit ExecutionContext
+   * @param as       an implicit ActorSystem
+   * @param mat      an implicit Materializer
+   * @return a `ClamSink`
    */
-  def sink(filename: String)(
+  private def sink(filename: String)(
     implicit
     ec: ExecutionContext,
     as: ActorSystem,
@@ -129,9 +138,10 @@ class ClamIO(
   }
 
   /**
+   * The method setting up a `ClamSink` complete with source and TCP connection.
    *
-   * @param filename
-   * @return
+   * @param filename the name of the file to be scanned
+   * @return a complete `ClamSink`
    */
   def scan(filename: String)(
     implicit
@@ -152,6 +162,9 @@ object ClamIO {
     SendBufferSize(chunkSize)
   )
 
+  /**
+   * Creates a new instance of a ClamSink
+   */
   def apply(host: String, port: Int, timeout: Duration)(
     implicit
     ec: ExecutionContext,

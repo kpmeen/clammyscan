@@ -17,8 +17,6 @@ trait ConfigKeys {
 
 class ClamConfig(config: Configuration) extends ConfigKeys {
 
-  lazy val underlying = config.underlying
-
   private val DefaultPortNumber = 3310
   private val DefaultTimeout = 5 seconds
 

@@ -4,10 +4,20 @@ import akka.util.ByteString
 
 object ClamProtocol {
 
+  // ----------
+  // Some String based constants with values of different response messages
+  // that can be expected from clamd.
+  // ----------
   val unknownCommand = "UNKNOWN COMMAND"
   val okResponse = "stream: OK"
   val maxSizeExceededResponse = "INSTREAM size limit exceeded. ERROR"
 
+  // The unicode null character...must be appended to some clam commands
+  val unicodeNull = "\u0000"
+
+  /**
+   * Definition commands that can be used against clamd.
+   */
   sealed trait Command {
     val str: String
     lazy val cmd: ByteString = ByteString.fromString(str)
@@ -29,18 +39,30 @@ object ClamProtocol {
 
   }
 
+  /**
+   * Command for initializing stream based AV scanning
+   */
   case object Instream extends Command {
-    val str = "zINSTREAM\u0000"
+    val str = s"zINSTREAM$unicodeNull"
   }
 
+  /**
+   * Command for sending clamd a ping
+   */
   case object Ping extends Command {
-    val str = "zPING\u0000"
+    val str = s"zPING$unicodeNull"
   }
 
+  /**
+   * Command for retrieving a status message from clamd
+   */
   case object Status extends Command {
-    val str = "zSTATS\u0000"
+    val str = s"zSTATS$unicodeNull"
   }
 
+  /**
+   * Command for retrieving the version of the clamd
+   */
   case object Version extends Command {
     val str = "VERSION"
   }
