@@ -173,7 +173,7 @@ class ClamIO(
    * Ask clamd for its internal stats
    */
   def stats(implicit e: ExecutionContext, s: ActorSystem, m: Materializer): Future[String] = // scalastyle:ignore
-    executeCommand(Status)
+    executeCommand(Stats)
 
 }
 

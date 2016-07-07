@@ -28,7 +28,7 @@ object ClamProtocol {
       bs match {
         case Instream.cmd => Some(Instream)
         case Ping.cmd => Some(Ping)
-        case Status.cmd => Some(Status)
+        case Stats.cmd => Some(Stats)
         case Version.cmd => Some(Version)
         case _ => None
       }
@@ -53,9 +53,9 @@ object ClamProtocol {
   }
 
   /**
-   * Command for retrieving a status message from clamd
+   * Command for retrieving a statistics message from clamd
    */
-  case object Status extends Command {
+  case object Stats extends Command {
     val cmd = ByteString.fromString(s"zSTATS$unicodeNull")
   }
 
