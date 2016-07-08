@@ -14,7 +14,7 @@ With ClammyScan this risk can be reduced since the file is scanned while it's be
 Add the dependency for ClammyScan to your `build.sbt`:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.7"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.8"
 ```
 
 Or you can clone the repository and build from source.
@@ -113,6 +113,28 @@ Scans your file and writes it to a temporary file, available for later processin
 ```
 
 For a full example application using the parsers, please have a look in the [sample](sample) directory.
+
+## Other
+
+In addition to the implemented parsers above, an instance of a ClammyScan parser can execute the following commands against clamd.
+
+### ping
+
+Will just execute the `PING` command against clamd, which will respond with a `PONG`.
+
+### version
+
+Fetches the version string for the connected clamd installation.
+
+### stats
+
+Fetches a string with statistics information from the connected clamd installation.
+
+The official clamav documentation states the following about the response format:
+
+> The exact reply format is subject to changes in future releases.
+
+So there has been no extra effort to properly parse the response into meaningful types.
 
 
 # Contributing
