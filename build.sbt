@@ -63,8 +63,8 @@ resolvers ++= Seq(
   Resolver.jcenterRepo
 )
 
-val playVersion = "2.5.4"
-val akkaVersion = "2.4.4"
+val playVersion = "2.5.8"
+val akkaVersion = "2.4.11"
 val stestVersion = "2.2.6"
 val stestPlusVersion = "1.5.0"
 
