@@ -14,7 +14,9 @@ With ClammyScan this risk can be reduced since the file is scanned while it's be
 Add the dependency for ClammyScan to your `build.sbt`:
 
 ```scala
-libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.8"
+resolvers += Resolver.jcenterRepo
+
+libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.9"
 ```
 
 Or you can clone the repository and build from source.
