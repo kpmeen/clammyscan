@@ -1,6 +1,6 @@
 package net.scalytica.clammyscan
 
-import java.io.File
+import java.nio.file.Paths
 
 import akka.stream.IOResult
 import akka.stream.scaladsl.{FileIO, Source}
@@ -10,11 +10,11 @@ import org.scalatest.Matchers.fail
 import scala.concurrent.Future
 
 case class FileSource(
-  fname: String, source: Source[ByteString, Future[IOResult]]
+    fname: String,
+    source: Source[ByteString, Future[IOResult]]
 )
 
-trait TestResources {
-  self =>
+trait TestResources { self =>
 
   val eicarResult =
     Some("""{"message":"stream: Eicar-Test-Signature FOUND"}""")
@@ -27,18 +27,16 @@ trait TestResources {
 
   val eicarStrSource = Source.single[ByteString](ByteString(eicarString))
 
-  // scalastyle:off
-  val cleanFile = fileAsSource("clean.pdf")
-  val eicarFile = fileAsSource("eicar.com")
+  val cleanFile    = fileAsSource("clean.pdf")
+  val eicarFile    = fileAsSource("eicar.com")
   val eicarTxtFile = fileAsSource("eicar.com.txt")
   val eicarZipFile = fileAsSource("eicarcom2.zip")
-  // scalastyle:on
 
   def fileAsSource(fname: String): FileSource =
     FileSource(
       fname,
-      FileIO.fromFile(
-        new File(self.getClass.getResource(s"/files/$fname").toURI)
+      FileIO.fromPath(
+        Paths.get(self.getClass.getResource(s"/files/$fname").toURI)
       )
     )
 }
@@ -46,9 +44,9 @@ trait TestResources {
 object TestHelpers {
 
   val instreamCmd = "zINSTREAM\u0000"
-  val pingCmd = "zPING\u0000"
-  val statusCmd = "zSTATS\u0000"
-  val versionCmd = "VERSION"
+  val pingCmd     = "zPING\u0000"
+  val statusCmd   = "zSTATS\u0000"
+  val versionCmd  = "VERSION"
 
   def unexpectedClamError(ce: ClamError): Nothing =
     fail(s"Unexpected ClamError result ${ce.message}")

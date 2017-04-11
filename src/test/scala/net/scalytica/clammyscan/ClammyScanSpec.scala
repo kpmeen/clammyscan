@@ -15,16 +15,17 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
    * `ClammyContext.scan*Action` helpers.
    */
   def validateResult(
-    result: Result,
-    expectedStatusCode: Int,
-    expectedBody: Option[String] = None
+      result: Result,
+      expectedStatusCode: Int,
+      expectedBody: Option[String] = None
   )(ctx: Context): Unit = {
     implicit val mat = ctx.materializer
 
     result.header.status mustEqual expectedStatusCode
     expectedBody.foreach { eb =>
       val body = Await.result(
-        result.body.consumeData.map[String](_.utf8String), 20 seconds
+        result.body.consumeData.map[String](_.utf8String),
+        20 seconds
       )
       body mustBe eb
     }
@@ -40,7 +41,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       "fail when scanOnly is used" in
         withScanAction(scanOnlyAction, unavailableConfig) { implicit ctx =>
           val request = fakeReq(eicarZipFile, Some("application/zip"))
-          val result = ctx.awaitResult(request)
+          val result  = ctx.awaitResult(request)
 
           validateResult(result, BAD_REQUEST, clamdUnavailableResult)(ctx)
         }
@@ -48,7 +49,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       "fail the AV scan and keep the file when scanWithTmpFile is used" in
         withScanAction(scanTmpAction, unavailableConfig) { implicit ctx =>
           val request = fakeReq(eicarFile, None)
-          val result = ctx.awaitResult(request)
+          val result  = ctx.awaitResult(request)
 
           validateResult(result, BAD_REQUEST, clamdUnavailableResult)(ctx)
         }
@@ -61,7 +62,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       "return OK when only scanning" in {
         withScanAction(scanTmpAction, disabledConfig) { implicit ctx =>
           val request = fakeReq(eicarZipFile, Some("application/zip"))
-          val result = ctx.awaitResult(request)
+          val result  = ctx.awaitResult(request)
 
           validateResult(result, OK, None)(ctx)
         }
@@ -69,7 +70,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       "skip the AV scan an keep the file" in {
         withScanAction(scanTmpAction, disabledConfig) { implicit ctx =>
           val request = fakeReq(eicarFile, Some("application/zip"))
-          val result = ctx.awaitResult(request)
+          val result  = ctx.awaitResult(request)
 
           validateResult(result, OK, None)(ctx)
         }
@@ -83,7 +84,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       "scan infected file and not persist the file" in
         withScanAction(scanOnlyAction) { implicit ctx =>
           val request = fakeReq(eicarZipFile, Some("application/zip"))
-          val result = ctx.awaitResult(request)
+          val result  = ctx.awaitResult(request)
 
           validateResult(result, NOT_ACCEPTABLE, eicarResult)(ctx)
         }
@@ -91,7 +92,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       "scan clean file and not persist the file" in
         withScanAction(scanOnlyAction) { implicit ctx =>
           val request = fakeReq(cleanFile, Some("application/pdf"))
-          val result = ctx.awaitResult(request)
+          val result  = ctx.awaitResult(request)
 
           validateResult(result, OK, None)(ctx)
         }
@@ -102,7 +103,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       "scan infected file and remove the temp file" in
         withScanAction(scanTmpAction) { implicit ctx =>
           val request = fakeReq(eicarFile, None)
-          val result = ctx.awaitResult(request)
+          val result  = ctx.awaitResult(request)
 
           implicit val mat = ctx.materializer
 
@@ -112,7 +113,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       "scan clean file and not remove the temp file" in
         withScanAction(scanTmpAction) { implicit ctx =>
           val request = fakeReq(cleanFile, Some("application/pdf"))
-          val result = ctx.awaitResult(request)
+          val result  = ctx.awaitResult(request)
 
           validateResult(result, OK, None)(ctx)
         }
@@ -130,7 +131,9 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
           validateResult(
             result,
             BAD_REQUEST,
-            Some(s"""{"message":"Filename $bad contains illegal characters"}""")
+            Some(
+              s"""{"message":"Filename $bad contains illegal characters"}"""
+            )
           )(ctx)
         }
     }
@@ -141,11 +144,12 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       Map("clammyscan.removeInfected" -> false)
 
     "should not remove the infected file" in
-      withScanAction(scanTmpAction, doNotRemoveInfectedConfig) { implicit ctx =>
-        val request = fakeReq(eicarFile, None)
-        val result = ctx.awaitResult(request)
+      withScanAction(scanTmpAction, doNotRemoveInfectedConfig) {
+        implicit ctx =>
+          val request = fakeReq(eicarFile, None)
+          val result  = ctx.awaitResult(request)
 
-        validateResult(result, NOT_ACCEPTABLE, eicarResult)(ctx)
+          validateResult(result, NOT_ACCEPTABLE, eicarResult)(ctx)
       }
   }
 }

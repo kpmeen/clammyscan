@@ -13,9 +13,9 @@ import play.api.mvc._
 
 @Singleton
 class Application @Inject()(
-  actorSystem: ActorSystem,
-  materializer: Materializer,
-  clammyScan: ClammyScan
+    actorSystem: ActorSystem,
+    materializer: Materializer,
+    clammyScan: ClammyScan
 ) extends Controller {
 
   val logger = Logger(this.getClass)

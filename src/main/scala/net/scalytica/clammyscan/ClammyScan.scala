@@ -20,8 +20,7 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
  * Enables parallel AV scanning of files/attachments being uploaded.
  */
-trait ClammyScan {
-  self =>
+trait ClammyScan { self =>
 
   protected val cbpLogger = Logger(self.getClass)
 
@@ -35,8 +34,8 @@ trait ClammyScan {
    * `remove` function.
    */
   def scan[A](
-    save: ToSaveSink[A],
-    remove: A => Unit
+      save: ToSaveSink[A],
+      remove: A => Unit
   )(implicit ec: ExecutionContext): ClamParser[A]
 
   /**
@@ -58,12 +57,12 @@ trait ClammyScan {
 }
 
 abstract class BaseScanParser(
-  sys: ActorSystem,
-  mat: Materializer,
-  config: Configuration
+    sys: ActorSystem,
+    mat: Materializer,
+    config: Configuration
 ) extends ClammyScan {
 
-  implicit val system: ActorSystem = sys
+  implicit val system: ActorSystem        = sys
   implicit val materializer: Materializer = mat
 
   val clamConfig = new ClamConfig(config)
@@ -73,11 +72,13 @@ abstract class BaseScanParser(
    * defined in application.conf.
    */
   protected def fileNameValid(filename: String): Boolean =
-    clamConfig.validFilenameRegex.forall(regex =>
-      regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
-        case Some(m) => false
-        case _ => true
-      })
+    clamConfig.validFilenameRegex.forall(
+      regex =>
+        regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
+          case Some(m) => false
+          case _       => true
+      }
+    )
 
   /**
    * Specifically sets up a `ClamSink` that is ready to receive the incoming
@@ -86,7 +87,7 @@ abstract class BaseScanParser(
    * Controlled by the config property `clammyscan.scanDisabled`.
    */
   protected def clammySink(
-    filename: String
+      filename: String
   )(implicit ec: ExecutionContext) = {
     if (!clamConfig.scanDisabled) {
       ClamIO(
@@ -108,7 +109,7 @@ abstract class BaseScanParser(
    * invalid filename, two cancelled sinks are returned.
    */
   protected def sinks[A](filename: String, contentType: Option[String])(
-    save: ToSaveSink[A]
+      save: ToSaveSink[A]
   )(implicit ec: ExecutionContext): (ClamSink, SaveSink[A]) =
     if (fileNameValid(filename)) {
       (clammySink(filename), save(filename, contentType))
@@ -128,31 +129,33 @@ abstract class BaseScanParser(
    * before materializing the result from both into a `ScannedBody`.
    */
   protected def broadcastGraph[A](
-    c: ClamSink,
-    s: SaveSink[A]
+      c: ClamSink,
+      s: SaveSink[A]
   )(implicit e: ExecutionContext): Sink[ByteString, Future[ScannedBody[A]]] =
-    Sink.fromGraph[ByteString, (Future[ScanResponse], Future[Option[A]])] {
-      GraphDSL.create(c, s)((cs, ss) => (cs, ss)) { implicit b => (cs, ss) =>
-        import GraphDSL.Implicits._
+    Sink
+      .fromGraph[ByteString, (Future[ScanResponse], Future[Option[A]])] {
+        GraphDSL.create(c, s)((cs, ss) => (cs, ss)) { implicit b => (cs, ss) =>
+          import GraphDSL.Implicits._
 
-        val bro = b.add(Broadcast[ByteString](2))
-        bro ~> cs
-        bro ~> ss
+          val bro = b.add(Broadcast[ByteString](2))
+          bro ~> cs
+          bro ~> ss
 
-        SinkShape(bro.in)
-      }
-    }.mapMaterializedValue { mat =>
-      for {
-        cr <- mat._1.recover {
-          case ClammyException(err) => err
-          case stex: StreamTcpException => ScanError(stex.getMessage)
-          case ex =>
-            cbpLogger.error("", ex)
-            ScanError(unhandledException)
+          SinkShape(bro.in)
         }
-        sr <- mat._2
-      } yield ScannedBody(cr, sr)
-    }
+      }
+      .mapMaterializedValue { mat =>
+        for {
+          cr <- mat._1.recover {
+                 case ClammyException(err)     => err
+                 case stex: StreamTcpException => ScanError(stex.getMessage)
+                 case ex =>
+                   cbpLogger.error("", ex)
+                   ScanError(unhandledException)
+               }
+          sr <- mat._2
+        } yield ScannedBody(cr, sr)
+      }
 
   /**
    * Function specifically for handling the ClamError cases in the
@@ -160,10 +163,10 @@ abstract class BaseScanParser(
    * parser is configured.
    */
   protected def handleError[A](
-    fud: MultipartFormData[ScannedBody[A]],
-    err: ClamError
+      fud: MultipartFormData[ScannedBody[A]],
+      err: ClamError
   )(
-    remove: => Unit
+      remove: => Unit
   )(implicit ec: ExecutionContext): Future[Either[Result, ClamMultipart[A]]] = {
     Future.successful {
       err match {
@@ -171,9 +174,11 @@ abstract class BaseScanParser(
           // We have encountered the dreaded VIRUS...run awaaaaay
           if (clamConfig.canRemoveInfectedFiles) {
             remove
-            Left(Results.NotAcceptable(
-              Json.obj("message" -> vf.message)
-            ))
+            Left(
+              Results.NotAcceptable(
+                Json.obj("message" -> vf.message)
+              )
+            )
           } else {
             // We cannot remove the uploaded file, so we return the parsed
             // result back to the controller to let it handle it.
@@ -183,9 +188,11 @@ abstract class BaseScanParser(
         case clamError =>
           if (clamConfig.canRemoveOnError) remove
           if (clamConfig.shouldFailOnError) {
-            Left(Results.BadRequest(
-              Json.obj("message" -> clamError.message)
-            ))
+            Left(
+              Results.BadRequest(
+                Json.obj("message" -> clamError.message)
+              )
+            )
           } else {
             Right(fud)
           }
@@ -228,63 +235,73 @@ abstract class BaseScanParser(
 /**
  * Default implementation of the ClammyScan parsers
  */
-class ClammyScanParser @Inject() (
-  sys: ActorSystem,
-  mat: Materializer,
-  config: Configuration
+class ClammyScanParser @Inject()(
+    sys: ActorSystem,
+    mat: Materializer,
+    config: Configuration
 ) extends BaseScanParser(sys, mat, config) {
 
   def scan[A](
-    save: ToSaveSink[A],
-    remove: A => Unit
+      save: ToSaveSink[A],
+      remove: A => Unit
   )(implicit ec: ExecutionContext): ClamParser[A] = {
     multipartFormData[ScannedBody[A]] {
       case FileInfo(partName, filename, contentType) =>
         val theSinks = sinks(filename, contentType)(save)
-        val comb = broadcastGraph(theSinks._1, theSinks._2)
+        val comb     = broadcastGraph(theSinks._1, theSinks._2)
 
         Accumulator(comb).map { ref =>
           MultipartFormData.FilePart(partName, filename, contentType, ref)
         }
 
     }.validateM((data: ClamMultipart[A]) => {
-      data.files.headOption.map(hf => hf.ref.scanResponse match {
-        case err: ClamError =>
-          // Ooops...there seems to be a problem with the clamd scan result.
-          val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
-          handleError(data, err) {
-            maybeFile.foreach(f => remove(f))
-          }
-        case FileOk =>
-          Future.successful(Right(data))
+      data.files.headOption
+        .map(
+          hf =>
+            hf.ref.scanResponse match {
+              case err: ClamError =>
+                // Ooops...there seems to be a problem with the clamd result.
+                val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
+                handleError(data, err) {
+                  maybeFile.foreach(f => remove(f))
+                }
+              case FileOk =>
+                Future.successful(Right(data))
 
-      }).getOrElse {
-        Future.successful {
-          Left(Results.BadRequest(Json.obj(
-            "message" -> "Unable to locate any files after scan result"
-          )))
+          }
+        )
+        .getOrElse {
+          Future.successful {
+            Left(
+              Results.BadRequest(
+                Json.obj(
+                  "message" -> "Unable to locate any files after scan result"
+                )
+              )
+            )
+          }
         }
-      }
     })
   }
 
-  def scanWithTmpFile(implicit e: ExecutionContext): ClamParser[TemporaryFile] =
+  def scanWithTmpFile(
+      implicit e: ExecutionContext
+  ): ClamParser[TemporaryFile] =
     scan[TemporaryFile](
-      save = {
-      (fname, ctype) =>
+      save = { (fname, ctype) =>
         val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-        FileIO.toFile(tempFile.file).mapMaterializedValue { fio =>
+        FileIO.toPath(tempFile.file.toPath).mapMaterializedValue { fio =>
           fio.map(_ => Option(tempFile))
         }
-    },
+      },
       remove = tmpFile => tmpFile.clean()
     )
 
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] =
     scan[Unit](
       save = (f, c) =>
-      Sink.cancelled[ByteString].mapMaterializedValue { notUsed =>
-        Future.successful(None)
+        Sink.cancelled[ByteString].mapMaterializedValue { notUsed =>
+          Future.successful(None)
       },
       remove = _ => cbpLogger.debug("Only scanning, no file to remove")
     )

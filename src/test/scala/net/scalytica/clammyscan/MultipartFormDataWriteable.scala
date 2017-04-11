@@ -24,7 +24,7 @@ object MultipartFormDataWriteable {
   }
 
   private[this] def filePartHeader(file: FilePart[TemporaryFile]) = {
-    val name = s""""${file.key}""""
+    val name     = s""""${file.key}""""
     val filename = s""""${file.filename}""""
     val contentType = file.contentType.map { ct =>
       s"${HeaderNames.CONTENT_TYPE}: $ct\r\n"
@@ -38,19 +38,19 @@ object MultipartFormDataWriteable {
 
   val singleton = Writeable[MultipartFormData[TemporaryFile]](
     transform = { form: MultipartFormData[TemporaryFile] =>
-    val formDataParts = formatDataParts(form.dataParts)
-    val fileParts = form.files.flatMap { f =>
-      val path = f.ref.file.getAbsolutePath
-      val bytes = Files.readAllBytes(Paths.get(path))
-      filePartHeader(f) ++ bytes ++ Codec.utf_8.encode("\r\n")
-    }
+      val formDataParts = formatDataParts(form.dataParts)
+      val fileParts = form.files.flatMap { f =>
+        val path  = f.ref.file.getAbsolutePath
+        val bytes = Files.readAllBytes(Paths.get(path))
+        filePartHeader(f) ++ bytes ++ Codec.utf_8.encode("\r\n")
+      }
 
-    formDataParts ++ fileParts ++ Codec.utf_8.encode(s"--$boundary--")
-  },
+      formDataParts ++ fileParts ++ Codec.utf_8.encode(s"--$boundary--")
+    },
     contentType = Some(s"multipart/form-data; boundary=$boundary")
   )
 
-  implicit val acAsMultiPartWritable: Writeable[AnyContentAsMultipartFormData] =
+  implicit val acAsMultiPartWritable
+    : Writeable[AnyContentAsMultipartFormData] =
     singleton.map(_.mdf)
 }
-

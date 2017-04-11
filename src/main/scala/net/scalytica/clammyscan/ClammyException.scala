@@ -7,6 +7,6 @@ import scala.util.control.NoStackTrace
  *
  * @param scanError any subtype of ScanError
  */
-case class ClammyException(
-  scanError: ScanError
-) extends Exception(scanError.message) with NoStackTrace
+case class ClammyException(scanError: ScanError)
+    extends Exception(scanError.message)
+    with NoStackTrace

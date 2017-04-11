@@ -5,20 +5,20 @@ import play.api.Configuration
 import scala.concurrent.duration._
 
 trait ConfigKeys {
-  val hostKey = "clammyscan.clamd.host"
-  val portKey = "clammyscan.clamd.port"
-  val timeoutKey = "clammyscan.clamd.timeout"
+  val hostKey           = "clammyscan.clamd.host"
+  val portKey           = "clammyscan.clamd.port"
+  val timeoutKey        = "clammyscan.clamd.timeout"
   val removeInfectedKey = "clammyscan.removeInfected"
-  val removeOnErrorKey = "clammyscan.removeOnError"
-  val failOnErrorKey = "clammyscan.failOnError"
-  val disabled = "clammyscan.scanDisabled"
-  val filenameRegex = "clammyscan.validFilenameRegex"
+  val removeOnErrorKey  = "clammyscan.removeOnError"
+  val failOnErrorKey    = "clammyscan.failOnError"
+  val disabled          = "clammyscan.scanDisabled"
+  val filenameRegex     = "clammyscan.validFilenameRegex"
 }
 
 class ClamConfig(config: Configuration) extends ConfigKeys {
 
   private val DefaultPortNumber = 3310
-  private val DefaultTimeout = 5 seconds
+  private val DefaultTimeout    = 5 seconds
 
   /**
    * IP address of clamd daemon. Defaults to localhost
@@ -34,9 +34,12 @@ class ClamConfig(config: Configuration) extends ConfigKeys {
    * Socket timeout for clam. Defaults to 5 seconds.
    */
   lazy val timeout: Duration =
-    config.getMilliseconds(timeoutKey).map { ms =>
-      if (ms == 0) Duration.Inf else FiniteDuration(ms, MILLISECONDS)
-    }.getOrElse(DefaultTimeout)
+    config
+      .getMilliseconds(timeoutKey)
+      .map { ms =>
+        if (ms == 0) Duration.Inf else FiniteDuration(ms, MILLISECONDS)
+      }
+      .getOrElse(DefaultTimeout)
 
   /**
    * Remove file if it is infected... defaults value is true

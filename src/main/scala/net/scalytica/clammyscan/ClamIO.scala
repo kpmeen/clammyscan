@@ -27,9 +27,9 @@ import scala.concurrent.{ExecutionContext, Future}
  * @param timeout how long to wait before timing out the connection
  */
 class ClamIO(
-  host: String,
-  port: Int,
-  timeout: Duration
+    host: String,
+    port: Int,
+    timeout: Duration
 ) {
 
   private val logger = Logger(this.getClass)
@@ -43,20 +43,22 @@ class ClamIO(
    * @return a Future of a TCP Connection
    *         {{{Flow[ByteString, _, Future[OutgoingConnection]][ByteString]}}}
    */
-  private def connection(implicit as: ActorSystem) = // scalastyle:ignore
-    Tcp().outgoingConnection(
-      remoteAddress = inetAddr,
-      connectTimeout = timeout,
-      options = ClamIO.socketOpts
-    ).recover {
-      case err: StreamTcpException =>
-        logger.debug("An error occurred trying to connect to Clam", err)
-        throw ClammyException(couldNotConnect)
-    }
+  private def connection(implicit as: ActorSystem) =
+    Tcp()
+      .outgoingConnection(
+        remoteAddress = inetAddr,
+        connectTimeout = timeout,
+        options = ClamIO.socketOpts
+      )
+      .recover {
+        case err: StreamTcpException =>
+          logger.debug("An error occurred trying to connect to Clam", err)
+          throw ClammyException(couldNotConnect)
+      }
 
   /*
    * Need a special flag to identify the first chunk, so we can ensure the
-   * correct ClamAV command sequence can be injected infront of the stream.
+   * correct ClamAV command sequence can be injected in front of the stream.
    */
   private var commandInitiated: Boolean = false
 
@@ -69,7 +71,7 @@ class ClamIO(
    * a sequence of 4 bytes with the length of the following chunk as an
    * unsigned integer.
    */
-  private def stream(implicit as: ActorSystem) = // scalastyle:ignore
+  private def stream(implicit as: ActorSystem) =
     Flow[ByteString].mapConcat { bs =>
       val builder = immutable.Seq.newBuilder[ByteString]
       if (!commandInitiated) {
@@ -99,10 +101,9 @@ class ClamIO(
    * @return a `ClamSink`
    */
   private def sink(filename: String)(
-    implicit
-    ec: ExecutionContext,
-    as: ActorSystem,
-    mat: Materializer
+      implicit ec: ExecutionContext,
+      as: ActorSystem,
+      mat: Materializer
   ): ClamSink = {
 
     case class ScanState(chunkNum: Int = 0, result: String = "") {
@@ -128,13 +129,15 @@ class ClamIO(
       }
     }
 
-    Sink.fold[ScanState, ByteString](ScanState()) { (state, chunk) =>
-      logger.debug(s"Processing new chunk ${state.chunkNum + 1}...\n")
-      state.append(chunk)
-    }.mapMaterializedValue { ss =>
-      logger.debug("Materializing result...")
-      ss.map(_.validate)
-    }
+    Sink
+      .fold[ScanState, ByteString](ScanState()) { (state, chunk) =>
+        logger.debug(s"Processing new chunk ${state.chunkNum + 1}...\n")
+        state.append(chunk)
+      }
+      .mapMaterializedValue { ss =>
+        logger.debug("Materializing result...")
+        ss.map(_.validate)
+      }
   }
 
   /**
@@ -143,64 +146,75 @@ class ClamIO(
    * @param filename the name of the file to be scanned
    * @return a complete `ClamSink`
    */
-  def scan(
-    filename: String
-  )(implicit e: ExecutionContext, s: ActorSystem, m: Materializer): ClamSink = {
+  def scan(filename: String)(
+      implicit e: ExecutionContext,
+      s: ActorSystem,
+      m: Materializer
+  ): ClamSink = {
     logger.debug(s"Preparing to scan file $filename with clamd...")
     (stream via connection).toMat(sink(filename))(Keep.right)
   }
 
   // Helper for executing general commands against clamd
-  private def executeCommand(
-    command: Command
-  )(implicit e: ExecutionContext, s: ActorSystem, m: Materializer) =
+  private def executeCommand(command: Command)(
+      implicit e: ExecutionContext,
+      s: ActorSystem,
+      m: Materializer
+  ) =
     (Source.single(command.cmd) via connection)
       .runFold[String]("")((state, chunk) => s"$state${chunk.utf8String}")
 
   /**
    * Sends a PING command to clamd, expecting a PONG in response
    */
-  def ping(implicit e: ExecutionContext, s: ActorSystem, m: Materializer): Future[String] = // scalastyle:ignore
-    executeCommand(Ping)
+  def ping(
+      implicit e: ExecutionContext,
+      s: ActorSystem,
+      m: Materializer
+  ): Future[String] = executeCommand(Ping)
 
   /**
    * Ask clamd for the version string
    */
-  def version(implicit e: ExecutionContext, s: ActorSystem, m: Materializer): Future[String] = // scalastyle:ignore
-    executeCommand(Version)
+  def version(
+      implicit e: ExecutionContext,
+      s: ActorSystem,
+      m: Materializer
+  ): Future[String] = executeCommand(Version)
 
   /**
    * Ask clamd for its internal stats
    */
-  def stats(implicit e: ExecutionContext, s: ActorSystem, m: Materializer): Future[String] = // scalastyle:ignore
-    executeCommand(Stats)
+  def stats(
+      implicit e: ExecutionContext,
+      s: ActorSystem,
+      m: Materializer
+  ): Future[String] = executeCommand(Stats)
 
 }
 
 object ClamIO {
 
   val chunkSize = 262144
-  val socketOpts = immutable.Traversable[Inet.SocketOption](
-    SendBufferSize(chunkSize)
-  )
+  val socketOpts =
+    immutable.Traversable[Inet.SocketOption](SendBufferSize(chunkSize))
 
   /**
    * Creates a new instance of a ClamSink
    */
   def apply(host: String, port: Int, timeout: Duration)(
-    implicit
-    ec: ExecutionContext,
-    as: ActorSystem,
-    mat: Materializer
+      implicit ec: ExecutionContext,
+      as: ActorSystem,
+      mat: Materializer
   ): ClamIO = new ClamIO(host, port, timeout)
 
   /**
    * Returns a cancelled ClamSink.
    */
   def cancelled(res: ScanResponse)(
-    implicit
-    ec: ExecutionContext,
-    as: ActorSystem,
-    mat: Materializer
-  ): ClamSink = Sink.cancelled.mapMaterializedValue(_ => Future.successful(res))
+      implicit ec: ExecutionContext,
+      as: ActorSystem,
+      mat: Materializer
+  ): ClamSink =
+    Sink.cancelled.mapMaterializedValue(_ => Future.successful(res))
 }

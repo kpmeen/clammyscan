@@ -8,7 +8,9 @@ import play.api.{Configuration, Environment}
  */
 class ClammyScanModule extends Module {
 
-  def bindings(environment: Environment, configuration: Configuration) = // scalastyle:ignore
-    Seq(bind[ClammyScan].to[ClammyScanParser])
+  def bindings(
+      environment: Environment,
+      configuration: Configuration
+  ): Seq[Binding[ClammyScan]] = Seq(bind[ClammyScan].to[ClammyScanParser])
 
 }

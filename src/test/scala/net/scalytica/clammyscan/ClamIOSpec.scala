@@ -10,11 +10,12 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class ClamIOSpec extends TestKit(ActorSystem("clamio-test-system"))
-  with WordSpecLike
-  with Matchers
-  with BeforeAndAfterAll
-  with TestResources {
+class ClamIOSpec
+    extends TestKit(ActorSystem("clamio-test-system"))
+    with WordSpecLike
+    with Matchers
+    with BeforeAndAfterAll
+    with TestResources {
 
   implicit val sys = system
   implicit val mat = ActorMaterializer()
