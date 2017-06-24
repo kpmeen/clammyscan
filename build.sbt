@@ -25,7 +25,7 @@ pomExtra := (
   </developers>
 )
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.11"
 
 scalacOptions ++= Seq(
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
@@ -58,22 +58,23 @@ resolvers ++= Seq(
   Resolver.jcenterRepo
 )
 
-val playVersion      = "2.5.14"
-val akkaVersion      = "2.4.17"
-val stestVersion     = "2.2.6"
-val stestPlusVersion = "1.5.0"
+val playVersion      = "2.6.0"
+val akkaVersion      = "2.5.3"
+val stestVersion     = "3.0.1"
+val stestPlusVersion = "3.0.0"
 
 libraryDependencies ++= Seq(
   // Play!
-  "com.typesafe.play" %% "play"      % playVersion % "provided",
-  "com.typesafe.play" %% "play-test" % playVersion % "test",
+  "com.typesafe.play" %% "play"       % playVersion % Provided,
+  "com.typesafe.play" %% "play-guice" % playVersion % Provided,
+  "com.typesafe.play" %% "play-test"  % playVersion % Test,
   // Akka
-  "com.typesafe.akka" %% "akka-actor"   % akkaVersion % "provided",
-  "com.typesafe.akka" %% "akka-stream"  % akkaVersion % "provided",
-  "com.typesafe.akka" %% "akka-slf4j"   % akkaVersion % "test",
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % "test",
+  "com.typesafe.akka" %% "akka-actor"   % akkaVersion % Provided,
+  "com.typesafe.akka" %% "akka-stream"  % akkaVersion % Provided,
+  "com.typesafe.akka" %% "akka-slf4j"   % akkaVersion % Test,
+  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
   // ScalaTest
-  "org.scalactic"          %% "scalactic"          % stestVersion     % "test",
-  "org.scalatest"          %% "scalatest"          % stestVersion     % "test",
-  "org.scalatestplus.play" %% "scalatestplus-play" % stestPlusVersion % "test"
+  "org.scalactic"          %% "scalactic"          % stestVersion     % Test,
+  "org.scalatest"          %% "scalatest"          % stestVersion     % Test,
+  "org.scalatestplus.play" %% "scalatestplus-play" % stestPlusVersion % Test
 )
