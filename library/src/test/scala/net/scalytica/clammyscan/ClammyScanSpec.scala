@@ -1,6 +1,5 @@
 package net.scalytica.clammyscan
 
-import net.scalytica.clammyscan.MultipartFormDataWriteable.acAsMultiPartWritable
 import play.api.mvc.Result
 import play.api.test.Helpers._
 

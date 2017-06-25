@@ -7,10 +7,9 @@ import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import com.google.inject.Inject
-import play.api.libs.Files.TemporaryFile
+import play.api.libs.Files.{TemporaryFile, TemporaryFileCreator}
 import play.api.libs.json.Json
 import play.api.libs.streams.Accumulator
-import play.api.mvc.BodyParsers.parse._
 import play.api.mvc._
 import play.api.{Configuration, Logger}
 import play.core.parsers.Multipart.FileInfo
@@ -238,6 +237,8 @@ abstract class BaseScanParser(
 class ClammyScanParser @Inject()(
     sys: ActorSystem,
     mat: Materializer,
+    tempFileCreator: TemporaryFileCreator,
+    bodyParsers: PlayBodyParsers,
     config: Configuration
 ) extends BaseScanParser(sys, mat, config) {
 
@@ -245,43 +246,45 @@ class ClammyScanParser @Inject()(
       save: ToSaveSink[A],
       remove: A => Unit
   )(implicit ec: ExecutionContext): ClamParser[A] = {
-    multipartFormData[ScannedBody[A]] {
-      case FileInfo(partName, filename, contentType) =>
-        val theSinks = sinks(filename, contentType)(save)
-        val comb     = broadcastGraph(theSinks._1, theSinks._2)
+    bodyParsers
+      .multipartFormData[ScannedBody[A]] {
+        case FileInfo(partName, filename, contentType) =>
+          val theSinks = sinks(filename, contentType)(save)
+          val comb     = broadcastGraph(theSinks._1, theSinks._2)
 
-        Accumulator(comb).map { ref =>
-          MultipartFormData.FilePart(partName, filename, contentType, ref)
-        }
-
-    }.validateM((data: ClamMultipart[A]) => {
-      data.files.headOption
-        .map(
-          hf =>
-            hf.ref.scanResponse match {
-              case err: ClamError =>
-                // Ooops...there seems to be a problem with the clamd result.
-                val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
-                handleError(data, err) {
-                  maybeFile.foreach(f => remove(f))
-                }
-              case FileOk =>
-                Future.successful(Right(data))
-
+          Accumulator(comb).map { ref =>
+            MultipartFormData.FilePart(partName, filename, contentType, ref)
           }
-        )
-        .getOrElse {
-          Future.successful {
-            Left(
-              Results.BadRequest(
-                Json.obj(
-                  "message" -> "Unable to locate any files after scan result"
+
+      }
+      .validateM((data: ClamMultipart[A]) => {
+        data.files.headOption
+          .map(
+            hf =>
+              hf.ref.scanResponse match {
+                case err: ClamError =>
+                  // Ooops...there seems to be a problem with the clamd result.
+                  val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
+                  handleError(data, err) {
+                    maybeFile.foreach(f => remove(f))
+                  }
+                case FileOk =>
+                  Future.successful(Right(data))
+
+            }
+          )
+          .getOrElse {
+            Future.successful {
+              Left(
+                Results.BadRequest(
+                  Json.obj(
+                    "message" -> "Unable to locate any files after scan result"
+                  )
                 )
               )
-            )
+            }
           }
-        }
-    })
+      })
   }
 
   def scanWithTmpFile(
@@ -289,12 +292,12 @@ class ClammyScanParser @Inject()(
   ): ClamParser[TemporaryFile] =
     scan[TemporaryFile](
       save = { (fname, ctype) =>
-        val tempFile = TemporaryFile("multipartBody", "scanWithTempFile")
-        FileIO.toPath(tempFile.file.toPath).mapMaterializedValue { fio =>
-          fio.map(_ => Option(tempFile))
+        val tf = tempFileCreator.create("multipartBody", "scanWithTempFile")
+        FileIO.toPath(tf.path).mapMaterializedValue { fio =>
+          fio.map(_ => Option(tf))
         }
       },
-      remove = tmpFile => tmpFile.clean()
+      remove = tmpFile => tmpFile.delete()
     )
 
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] =

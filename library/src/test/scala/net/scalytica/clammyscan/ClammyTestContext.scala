@@ -8,10 +8,10 @@ import org.scalatest._
 import play.api.Configuration
 import play.api.http.Writeable
 import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.Files.TemporaryFile
+import play.api.libs.Files.{TemporaryFile, TemporaryFileCreator}
 import play.api.libs.json.Json
 import play.api.mvc.MultipartFormData.FilePart
-import play.api.mvc._
+import play.api.mvc.{PlayBodyParsers, _}
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 
@@ -33,16 +33,21 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
 
   case class Context(action: EssentialAction)(
       implicit sys: ActorSystem,
-      mat: Materializer
+      mat: Materializer,
+      tfc: TemporaryFileCreator,
+      pbp: PlayBodyParsers
   ) {
 
-    val materializer = mat
+    val materializer    = mat
+    val tempFileCreator = tfc
 
     def awaitResult[A](
         req: FakeRequest[A]
     )(implicit wrt: Writeable[A]): Result = await(call(action, req))
 
   }
+
+  type TestActionBuilder = ActionBuilder[Request, AnyContent]
 
   def withScanAction[T](
       e: ClammyScanParser => EssentialAction,
@@ -56,15 +61,14 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
     val app = new GuiceApplicationBuilder().configure(config).build
 
     running(app) {
-      implicit val sys = app.actorSystem
-      implicit val mat = app.materializer
-      implicit val cfg = app.configuration
+      val cfg        = app.configuration
+      val sys        = app.actorSystem
+      val mat        = app.materializer
+      val tfc        = app.injector.instanceOf[TemporaryFileCreator]
+      val pbp        = app.injector.instanceOf[PlayBodyParsers]
+      val clammyScan = new ClammyScanParser(sys, mat, tfc, pbp, cfg)
 
-      val clammyScan = new ClammyScanParser(sys, mat, cfg)
-
-      val action = e(clammyScan)
-
-      test(new Context(action)(sys, mat))
+      test(Context(e(clammyScan))(sys, mat, tfc, pbp))
     }
   }
 
@@ -72,7 +76,7 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
       scan: ClamParser[A]
   )(
       f: (ScannedBody[A]) => Result
-  ): Action[ClamMultipart[A]] = Action(scan) { req =>
+  ): Action[ClamMultipart[A]] = new ActionBuilderImpl(scan).apply { req =>
     req.body.files.headOption.map { fp =>
       f(fp.ref)
     }.getOrElse(
@@ -145,9 +149,9 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
   )(implicit ctx: Context): FakeRequest[AnyContentAsMultipartFormData] = {
     implicit val mat = ctx.materializer
 
-    val tmpFile = TemporaryFile("test", s"${System.nanoTime}")
+    val tmpFile = ctx.tempFileCreator.create("test", s"${System.nanoTime}")
     val f = fileSource.source runWith FileIO
-      .toPath(tmpFile.file.toPath)
+      .toPath(tmpFile.path)
       .mapMaterializedValue(_.map(_ => tmpFile))
 
     val mfd = MultipartFormData(

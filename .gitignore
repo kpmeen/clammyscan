@@ -1,4 +1,3 @@
-/RUNNING_PID
 /logs/
 /project/*-shim.sbt
 /project/project/
@@ -7,3 +6,16 @@
 /.idea/
 *.sc
 *.swp
+project/project
+project/target
+target
+tmp
+.history
+dist
+/*.iml
+/out
+/.idea_modules
+/.classpath
+/.project
+/RUNNING_PID
+/.settings
