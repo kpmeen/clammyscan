@@ -26,6 +26,6 @@ build:
   post_ci:
     # Prepare for exporting coverage report to codacy
     - mkdir -p shippable/codecoverage
-    - mv target/scala-2.11/coverage-report/cobertura.xml $PWD/shippable/codecoverage/
+    - mv target/scala-2.10/coverage-report/cobertura.xml $PWD/shippable/codecoverage/
 
 
