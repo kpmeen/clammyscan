@@ -20,7 +20,8 @@ build:
     # Start clamav
     - /bootstrap.sh
     # Build the project
-    - sbt clean coverage test coverageReport codacyCoverage
+    - sbt clean coverage test coverageReport
+    - sbt coverageAggregate codacyCoverage
 
   post_ci:
     # Prepare for exporting coverage report to codacy
