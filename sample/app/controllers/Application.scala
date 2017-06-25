@@ -7,16 +7,19 @@ import akka.stream.Materializer
 import com.google.inject.Inject
 import net.scalytica.clammyscan.{ClamError, ClammyScan, FileOk, VirusFound}
 import play.api.Logger
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json.Json
 import play.api.mvc._
 
+import scala.concurrent.ExecutionContext
+
 @Singleton
 class Application @Inject()(
-    actorSystem: ActorSystem,
+    implicit actorSystem: ActorSystem,
     materializer: Materializer,
-    clammyScan: ClammyScan
-) extends Controller {
+    ec: ExecutionContext,
+    clammyScan: ClammyScan,
+    val controllerComponents: ControllerComponents
+) extends BaseController {
 
   val logger = Logger(this.getClass)
 
@@ -44,7 +47,7 @@ class Application @Inject()(
    */
   def scanTempFile = Action(clammyScan.scanWithTmpFile) { request =>
     request.body.files.headOption.map { f =>
-      val fname = f.ref.maybeRef.get.file.getName
+      val fname = f.ref.maybeRef.get.path.getFileName
       f.ref.scanResponse match {
         case err: ClamError =>
           Ok(Json.obj("message" -> s"$fname scan result was: ${err.message}"))
