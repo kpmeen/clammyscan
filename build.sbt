@@ -13,7 +13,7 @@ lazy val root = (project in file("."))
   .settings(NoPublish)
   .aggregate(library, sample)
 
-lazy val library = ClammyProject("library")
+lazy val library = ClammyProject("clammyscan", Some("library"))
   .settings(
     coverageMinimum := 80,
     coverageFailOnMinimum := true

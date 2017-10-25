@@ -57,8 +57,9 @@ object Settings {
     )
   )
 
-  def ClammyProject(name: String): Project = {
-    Project(name, file(name))
+  def ClammyProject(name: String, folder: Option[String] = None): Project = {
+    val folderName = folder.getOrElse(name)
+    Project(name, file(folderName))
       .settings(BaseSettings: _*)
       .settings(
         updateOptions := updateOptions.value.withCachedResolution(true)
