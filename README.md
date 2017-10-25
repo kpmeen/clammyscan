@@ -17,7 +17,7 @@ Add the dependency for ClammyScan to your `build.sbt`:
 ```scala
 resolvers += Resolver.jcenterRepo
 
-libraryDependencies += "net.scalytica" %% "clammyscan" % "1.0.9"
+libraryDependencies += "net.scalytica" %% "clammyscan" % "1.1.0"
 ```
 
 Or you can clone the repository and build from source.
