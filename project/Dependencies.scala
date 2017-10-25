@@ -8,10 +8,10 @@ object Dependencies {
     Resolver.jcenterRepo
   )
 
-  val playVersion      = "2.6.0"
-  val akkaVersion      = "2.5.3"
-  val stestVersion     = "3.0.1"
-  val stestPlusVersion = "3.0.0"
+  val playVersion      = play.core.PlayVersion.current
+  val akkaVersion      = "2.5.6"
+  val stestVersion     = "3.0.4"
+  val stestPlusVersion = "3.1.2"
 
   val PlayDeps = Seq(
     "com.typesafe.play" %% "play"       % playVersion % Provided,
