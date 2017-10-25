@@ -9,7 +9,9 @@ import play.sbt.PlayImport
 
 name := """clammyscan"""
 
-lazy val root = (project in file(".")).aggregate(library, sample)
+lazy val root = (project in file("."))
+  .settings(NoPublish)
+  .aggregate(library, sample)
 
 lazy val library = ClammyProject("library")
   .settings(
