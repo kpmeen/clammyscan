@@ -13,7 +13,7 @@ addSbtPlugin("io.get-coursier"  %% "sbt-coursier" % "1.0.0-RC12")
 addSbtPlugin("com.timushev.sbt" % "sbt-updates"   % "0.3.3")
 
 // Formatting and style checking
-addSbtPlugin("com.geirsson"   % "sbt-scalafmt"           % "0.6.8")
+libraryDependencies += "com.geirsson" %% "scalafmt-bootstrap" % "0.6.6"
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "0.9.0")
 
 // Code coverage

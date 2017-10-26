@@ -143,12 +143,11 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       Map("clammyscan.removeInfected" -> false)
 
     "should not remove the infected file" in
-      withScanAction(scanTmpAction, doNotRemoveInfectedConfig) {
-        implicit ctx =>
-          val request = fakeReq(eicarFile, None)
-          val result  = ctx.awaitResult(request)
+      withScanAction(scanTmpAction, doNotRemoveInfectedConfig) { implicit ctx =>
+        val request = fakeReq(eicarFile, None)
+        val result  = ctx.awaitResult(request)
 
-          validateResult(result, NOT_ACCEPTABLE, eicarResult)(ctx)
+        validateResult(result, NOT_ACCEPTABLE, eicarResult)(ctx)
       }
   }
 }

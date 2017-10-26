@@ -1,5 +1,6 @@
 import Settings._
-import Dependencies._
+import Dependencies.{scalafmtVersion, _}
+import org.scalafmt.bootstrap.ScalafmtBootstrap
 import play.sbt.PlayImport
 /*
 
@@ -9,9 +10,18 @@ import play.sbt.PlayImport
 
 name := """clammyscan"""
 
-lazy val root = (project in file("."))
-  .settings(NoPublish)
-  .aggregate(library, sample)
+// ============================================================================
+//  Workaround for latest scalafmt in sbt 0.13.x
+// ============================================================================
+commands += Command.args("scalafmt", "Run scalafmt cli.") {
+  case (s, args) =>
+    val Right(scalafmt) = ScalafmtBootstrap.fromVersion(scalafmtVersion)
+    scalafmt.main("--non-interactive" +: args.toArray)
+    s
+}
+
+lazy val root =
+  (project in file(".")).settings(NoPublish).aggregate(library, sample)
 
 lazy val library = ClammyProject("clammyscan", Some("library"))
   .settings(
