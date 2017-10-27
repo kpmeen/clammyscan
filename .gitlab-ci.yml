@@ -31,6 +31,6 @@ run test suites:
     # Start clamav
     - /bootstrap.sh
     # Build the project
-    - sbt clean coverage test coverageReport
+    - sbt clean coverage "+ test" coverageReport
     - sbt coverageAggregate codacyCoverage
 

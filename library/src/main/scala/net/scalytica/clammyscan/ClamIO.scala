@@ -71,7 +71,7 @@ class ClamIO(
    * a sequence of 4 bytes with the length of the following chunk as an
    * unsigned integer.
    */
-  private def stream(implicit as: ActorSystem) =
+  private def stream =
     Flow[ByteString].mapConcat { bs =>
       val builder = immutable.Seq.newBuilder[ByteString]
       if (!commandInitiated) {
@@ -94,17 +94,11 @@ class ClamIO(
   /**
    * Sink implementation that yields a ScanResponse when it's completed.
    *
-   * @param filename String with the name of the file being scanned
+   * @param fname String with the name of the file being scanned
    * @param ec       an implicit ExecutionContext
-   * @param as       an implicit ActorSystem
-   * @param mat      an implicit Materializer
    * @return a `ClamSink`
    */
-  private def sink(filename: String)(
-      implicit ec: ExecutionContext,
-      as: ActorSystem,
-      mat: Materializer
-  ): ClamSink = {
+  private def sink(fname: String)(implicit ec: ExecutionContext): ClamSink = {
 
     case class ScanState(chunkNum: Int = 0, result: String = "") {
       def append(chunk: ByteString): ScanState = {
@@ -117,13 +111,13 @@ class ClamIO(
       def validate: ScanResponse = {
         val res = result.trim
         if (ClamProtocol.okResponse.equals(res)) {
-          logger.debug(s"No viruses found in $filename")
+          logger.debug(s"No viruses found in $fname")
           FileOk
         } else if (ClamProtocol.unknownCommand.equals(res)) {
           logger.warn(s"Command not recognized: $res")
           ScanError(result)
         } else {
-          logger.warn(s"Virus detected in $filename - $res")
+          logger.warn(s"Virus detected in $fname - $res")
           VirusFound(res)
         }
       }
@@ -146,19 +140,16 @@ class ClamIO(
    * @param filename the name of the file to be scanned
    * @return a complete `ClamSink`
    */
-  def scan(filename: String)(
-      implicit e: ExecutionContext,
-      s: ActorSystem,
-      m: Materializer
-  ): ClamSink = {
+  def scan(
+      filename: String
+  )(implicit e: ExecutionContext, s: ActorSystem): ClamSink = {
     logger.debug(s"Preparing to scan file $filename with clamd...")
     (stream via connection).toMat(sink(filename))(Keep.right)
   }
 
   // Helper for executing general commands against clamd
   private def executeCommand(command: Command)(
-      implicit e: ExecutionContext,
-      s: ActorSystem,
+      implicit s: ActorSystem,
       m: Materializer
   ) =
     (Source.single(command.cmd) via connection)
@@ -167,27 +158,20 @@ class ClamIO(
   /**
    * Sends a PING command to clamd, expecting a PONG in response
    */
-  def ping(
-      implicit e: ExecutionContext,
-      s: ActorSystem,
-      m: Materializer
-  ): Future[String] = executeCommand(Ping)
+  def ping(implicit s: ActorSystem, m: Materializer): Future[String] =
+    executeCommand(Ping)
 
   /**
    * Ask clamd for the version string
    */
-  def version(
-      implicit e: ExecutionContext,
-      s: ActorSystem,
-      m: Materializer
-  ): Future[String] = executeCommand(Version)
+  def version(implicit s: ActorSystem, m: Materializer): Future[String] =
+    executeCommand(Version)
 
   /**
    * Ask clamd for its internal stats
    */
   def stats(
-      implicit e: ExecutionContext,
-      s: ActorSystem,
+      implicit s: ActorSystem,
       m: Materializer
   ): Future[String] = executeCommand(Stats)
 
@@ -202,19 +186,12 @@ object ClamIO {
   /**
    * Creates a new instance of a ClamSink
    */
-  def apply(host: String, port: Int, timeout: Duration)(
-      implicit ec: ExecutionContext,
-      as: ActorSystem,
-      mat: Materializer
-  ): ClamIO = new ClamIO(host, port, timeout)
+  def apply(host: String, port: Int, timeout: Duration): ClamIO =
+    new ClamIO(host, port, timeout)
 
   /**
    * Returns a cancelled ClamSink.
    */
-  def cancelled(res: ScanResponse)(
-      implicit ec: ExecutionContext,
-      as: ActorSystem,
-      mat: Materializer
-  ): ClamSink =
+  def cancelled(res: ScanResponse): ClamSink =
     Sink.cancelled.mapMaterializedValue(_ => Future.successful(res))
 }

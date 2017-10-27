@@ -166,7 +166,7 @@ abstract class BaseScanParser(
       err: ClamError
   )(
       remove: => Unit
-  )(implicit ec: ExecutionContext): Future[Either[Result, ClamMultipart[A]]] = {
+  ): Future[Either[Result, ClamMultipart[A]]] = {
     Future.successful {
       err match {
         case vf: VirusFound =>

@@ -104,8 +104,6 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
           val request = fakeReq(eicarFile, None)
           val result  = ctx.awaitResult(request)
 
-          implicit val mat = ctx.materializer
-
           validateResult(result, NOT_ACCEPTABLE, eicarResult)(ctx)
         }
 

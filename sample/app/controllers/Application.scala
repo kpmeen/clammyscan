@@ -2,8 +2,6 @@ package controllers
 
 import javax.inject.Singleton
 
-import akka.actor.ActorSystem
-import akka.stream.Materializer
 import com.google.inject.Inject
 import net.scalytica.clammyscan.{ClamError, ClammyScan, FileOk, VirusFound}
 import play.api.Logger
@@ -14,9 +12,7 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 class Application @Inject()(
-    implicit actorSystem: ActorSystem,
-    materializer: Materializer,
-    ec: ExecutionContext,
+    implicit ec: ExecutionContext,
     clammyScan: ClammyScan,
     val controllerComponents: ControllerComponents
 ) extends BaseController {
