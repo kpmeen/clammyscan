@@ -20,7 +20,10 @@ class ClamIOSpec
   implicit val sys = system
   implicit val mat = ActorMaterializer()
 
-  override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
+  override def afterAll(): Unit = {
+    mat.shutdown()
+    TestKit.shutdownActorSystem(system)
+  }
 
   val conf = {
     val c = ConfigFactory.defaultReference()
