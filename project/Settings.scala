@@ -26,12 +26,13 @@ object Settings {
 
   val BaseSettings = Seq(
     scalaVersion := Scala_2_12,
-    crossScalaVersions := Seq(Scala_2_11),
+    crossScalaVersions := Seq(Scala_2_12, Scala_2_11),
     scalacOptions := ScalacOpts,
     organization := "net.scalytica",
     licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     scalacOptions in Test ++= Seq("-Yrangepos"),
     logBuffered in Test := false,
+    fork in Test := true,
     javaOptions in Test += "-Dlogger.resource=logback-test.xml",
     testOptions += Tests
       .Argument(TestFrameworks.Specs2, "html", "junitxml", "console")
