@@ -1,6 +1,7 @@
 package net.scalytica.clammyscan
 
 import java.net.URLDecoder.decode
+import java.nio.file.Files
 
 import akka.actor.ActorSystem
 import akka.stream._
@@ -46,6 +47,11 @@ trait ClammyScan { self =>
    * Scans the file for virus without persisting.
    */
   def scanOnly(implicit e: ExecutionContext): ClamParser[Unit]
+
+  def scanChunked[A](
+      save: ToSaveSink[A],
+      remove: A => Unit
+  )(implicit e: ExecutionContext): ChunkedClamParser[A]
 
   def ping(implicit e: ExecutionContext): Future[String]
 
@@ -162,38 +168,30 @@ abstract class BaseScanParser(
    * parser is configured.
    */
   protected def handleError[A](
-      fud: MultipartFormData[ScannedBody[A]],
+      res: A,
       err: ClamError
   )(
       remove: => Unit
-  ): Future[Either[Result, ClamMultipart[A]]] = {
+  ): Future[Either[Result, A]] = {
     Future.successful {
       err match {
         case vf: VirusFound =>
           // We have encountered the dreaded VIRUS...run awaaaaay
           if (clamConfig.canRemoveInfectedFiles) {
             remove
-            Left(
-              Results.NotAcceptable(
-                Json.obj("message" -> vf.message)
-              )
-            )
+            Left(Results.NotAcceptable(Json.obj("message" -> vf.message)))
           } else {
             // We cannot remove the uploaded file, so we return the parsed
             // result back to the controller to let it handle it.
-            Right(fud)
+            Right(res)
           }
 
         case clamError =>
           if (clamConfig.canRemoveOnError) remove
           if (clamConfig.shouldFailOnError) {
-            Left(
-              Results.BadRequest(
-                Json.obj("message" -> clamError.message)
-              )
-            )
+            Left(Results.BadRequest(Json.obj("message" -> clamError.message)))
           } else {
-            Right(fud)
+            Right(res)
           }
       }
     }
@@ -241,6 +239,31 @@ class ClammyScanParser @Inject()(
     bodyParsers: PlayBodyParsers,
     config: Configuration
 ) extends BaseScanParser(sys, mat, config) {
+
+  def scanChunked[A](
+      save: ToSaveSink[A],
+      remove: A => Unit
+  )(implicit e: ExecutionContext): ChunkedClamParser[A] = {
+    BodyParser { rh =>
+      val fname: String         = ""
+      val ctype: Option[String] = None
+      val theSinks              = sinks(fname, ctype)(save)
+      val comb                  = broadcastGraph(theSinks._1, theSinks._2)
+
+      Accumulator(comb).map { sb =>
+        sb.scanResponse match {
+          case err: ClamError =>
+            // Ooops...there seems to be a problem with the clamd result.
+            handleError(sb.maybeRef, err) {
+              sb.maybeRef.foreach(f => remove(f))
+            }
+          case FileOk =>
+            Future.successful(Right(sb.maybeRef))
+        }
+      }
+      ???
+    }
+  }
 
   def scan[A](
       save: ToSaveSink[A],

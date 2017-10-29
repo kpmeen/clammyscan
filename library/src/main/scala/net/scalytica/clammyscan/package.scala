@@ -18,6 +18,8 @@ package object clammyscan {
 
   type ClamParser[A] = BodyParser[ClamMultipart[A]]
 
+  type ChunkedClamParser[A] = BodyParser[ScannedBody[A]]
+
   private[clammyscan] val connectionError = (filename: String) =>
     s"Failed to scan $filename with clamd because of a connection error. " +
     "Most likely because size limit was exceeded."
