@@ -24,13 +24,21 @@ check style and formatting:
     - sbt clean scalastyle scalafmt
     - git diff --exit-code || (echo "ERROR Code formatting check failed, see differences above."; false)
 
-run test suites:
+run test suites for 2.12:
   stage: test
   coverage: '/\[info]\sAll\sdone\.\sCoverage\swas\s\[(.*)%\]/'
   script:
     # Start clamav
     - /bootstrap.sh
     # Build the project
-    - sbt clean coverage "+ test" coverageReport
+    - sbt clean coverage test coverageReport
     - sbt coverageAggregate codacyCoverage
+
+run test suites for 2.11:
+  stage: test
+  script:
+    # Start clamav
+    - /bootstrap.sh
+    # Build the project
+    - sbt "+ 2.11.11" test
 
