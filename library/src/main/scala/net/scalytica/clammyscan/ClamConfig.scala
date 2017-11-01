@@ -5,20 +5,22 @@ import play.api.Configuration
 import scala.concurrent.duration._
 
 trait ConfigKeys {
-  val hostKey           = "clammyscan.clamd.host"
-  val portKey           = "clammyscan.clamd.port"
-  val timeoutKey        = "clammyscan.clamd.timeout"
-  val removeInfectedKey = "clammyscan.removeInfected"
-  val removeOnErrorKey  = "clammyscan.removeOnError"
-  val failOnErrorKey    = "clammyscan.failOnError"
-  val disabled          = "clammyscan.scanDisabled"
-  val filenameRegex     = "clammyscan.validFilenameRegex"
+  val hostKey            = "clammyscan.clamd.host"
+  val portKey            = "clammyscan.clamd.port"
+  val timeoutKey         = "clammyscan.clamd.timeout"
+  val streamMaxLengthKey = "clammyscan.clamd.streamMaxLength"
+  val removeInfectedKey  = "clammyscan.removeInfected"
+  val removeOnErrorKey   = "clammyscan.removeOnError"
+  val failOnErrorKey     = "clammyscan.failOnError"
+  val disabled           = "clammyscan.scanDisabled"
+  val filenameRegex      = "clammyscan.validFilenameRegex"
 }
 
 class ClamConfig(config: Configuration) extends ConfigKeys {
 
-  private val DefaultPortNumber = 3310
-  private val DefaultTimeout    = 5 seconds
+  private val DefaultPortNumber      = 3310
+  private val DefaultTimeout         = 5 seconds
+  private val DefaultMaxStreamLength = 2097152L
 
   /**
    * IP address of clamd daemon. Defaults to localhost
@@ -40,6 +42,11 @@ class ClamConfig(config: Configuration) extends ConfigKeys {
       .getOptional[Duration](timeoutKey)
       .map(ms => if (ms._1 == 0) Duration.Inf else ms)
       .getOrElse(DefaultTimeout)
+
+  lazy val streamMaxLength: Long =
+    if (config.has(streamMaxLengthKey))
+      config.underlying.getBytes(streamMaxLengthKey)
+    else DefaultMaxStreamLength
 
   /**
    * Remove file if it is infected... defaults value is true

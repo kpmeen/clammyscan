@@ -23,7 +23,7 @@ class Application @Inject()(
   logger.info("Temp directory is: " + System.getProperty("java.io.tmpdir"))
 
   /**
-   * Testing streaming virus scanning of files with no persistence.
+   * Testing streaming virus scanning of multipart file with no persistence.
    */
   def scanFile: Action[ClamMultipart[Unit]] =
     Action(clammyScan.scanOnly) { request =>
@@ -41,7 +41,7 @@ class Application @Inject()(
     }
 
   /**
-   * Scan with temp file
+   * Scan and store multipart as temp file
    */
   def scanTempFile: Action[ClamMultipart[Files.TemporaryFile]] =
     Action(clammyScan.scanWithTmpFile) { request =>
@@ -59,8 +59,23 @@ class Application @Inject()(
       }
     }
 
-  def foo = Action(parse.temporaryFile) { request =>
-    ???
-  }
+  /**
+   * Scanning of request body and store as temporary file
+   */
+  def directTempFile: Action[ScannedBody[Files.TemporaryFile]] =
+    Action(clammyScan.directScanWithTmpFile) { request =>
+      request.body.maybeRef.map { ref =>
+        val fname = ref.path.getFileName
+        request.body.scanResponse match {
+          case err: ClamError =>
+            Ok(Json.obj("message" -> s"$fname scan result was: ${err.message}"))
+
+          case FileOk =>
+            Ok(Json.obj("message" -> s"$fname uploaded successfully"))
+        }
+      }.getOrElse {
+        Ok(Json.obj("message" -> s"Request did not contain any files"))
+      }
+    }
 
 }

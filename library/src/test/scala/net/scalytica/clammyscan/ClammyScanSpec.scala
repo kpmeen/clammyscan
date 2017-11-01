@@ -8,6 +8,27 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class ClammyScanSpec extends ClammyTestContext with TestResources {
+  /*
+    FIXME: Current tests are not testing the streaming aspect.
+
+    The spec should be modified to extend PlaySpec and GuiceOneServerPerSuite.
+
+    This will allow testing using a fake application with custom routes as
+    follows:
+
+    override def fakeApplication(): Application =
+      new GuiceApplicationBuilder()
+        .disable[EhCacheModule]
+        .router(
+          Router.from {
+            case POST(p"/scanOnly")    => scanOnlyAction
+            case POST(p"/scanTmpFile") => scanTmpAction
+            case ...
+          }
+        )
+        .build()
+
+   */
 
   /**
    * IMPORTANT: This function relies heavily on the validation done in the
@@ -26,7 +47,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
         result.body.consumeData.map[String](_.utf8String),
         20 seconds
       )
-      body mustBe eb
+      body must include(eb)
     }
   }
 
@@ -77,9 +98,9 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
     }
   }
 
-  "a ClammyScan with default configuration" which {
+  "A ClammyScan with default configuration" which {
 
-    "receives a file for scanning only" should {
+    "receives a multipart file for scanning only" should {
       "scan infected file and not persist the file" in
         withScanAction(scanOnlyAction) { implicit ctx =>
           val request = fakeReq(eicarZipFile, Some("application/zip"))
@@ -95,9 +116,21 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
 
           validateResult(result, OK, None)(ctx)
         }
+
+      "fail scanning when file is larger than clam config" in
+        withScanAction(scanOnlyAction) { implicit ctx =>
+          val request = fakeReq(largeFile, Some("application/zip"))
+          val result  = ctx.awaitResult(request)
+
+          validateResult(
+            result,
+            BAD_REQUEST
+//            ,Some(ClamProtocol.MaxSizeExceededResponse)
+          )(ctx)
+        }
     }
 
-    "receives a file for scanning and saving as temp file" should {
+    "receives a multipart file for scanning and saving as temp file" should {
 
       "scan infected file and remove the temp file" in
         withScanAction(scanTmpAction) { implicit ctx =>
@@ -135,6 +168,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
         }
     }
   }
+
   "A ClammyScan with removeInfected set to false" which {
 
     val doNotRemoveInfectedConfig: Map[String, Any] =

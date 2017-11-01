@@ -3,9 +3,7 @@ package net.scalytica.clammyscan
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
-import akka.io.Inet
-import akka.io.Inet.SO.SendBufferSize
-import akka.stream.scaladsl._
+import akka.stream.scaladsl.{Tcp, _}
 import akka.stream.{Materializer, StreamTcpException}
 import akka.util.ByteString
 import net.scalytica.clammyscan.ClamProtocol._
@@ -22,33 +20,36 @@ import scala.concurrent.{ExecutionContext, Future}
  * response is finally consumed by a Sink implementation that maps the end
  * value to a ScanResult.
  *
- * @param host    the host where clamd is running
- * @param port    the port number where clamd is exposed
- * @param timeout how long to wait before timing out the connection
+ * @param host     the host where clamd is running
+ * @param port     the port number where clamd is exposed
+ * @param timeout  how long to wait before timing out the connection
+ * @param maxBytes the max number of bytes clamd is configured to accept.
+ * @see [[ClamConfig]]
  */
 class ClamIO(
     host: String,
     port: Int,
-    timeout: Duration
+    timeout: Duration,
+    maxBytes: Long
 ) {
 
-  private val logger = Logger(this.getClass)
+  private[this] val logger = Logger(this.getClass)
 
-  private val inetAddr = new InetSocketAddress(host, port)
+  private[this] val inetAddr = new InetSocketAddress(host, port)
 
   /**
    * Defines the TCP socket connection to ClamAV.
    *
    * @param as ActorSystem to run the connection on.
-   * @return a Future of a TCP Connection
-   *         {{{Flow[ByteString, _, Future[OutgoingConnection]][ByteString]}}}
+   * @return a Future of a TCP Connection Flow
    */
-  private def connection(implicit as: ActorSystem) =
+  private[this] def connection(
+      implicit as: ActorSystem
+  ): Flow[ByteString, ByteString, Future[Tcp.OutgoingConnection]] =
     Tcp()
       .outgoingConnection(
         remoteAddress = inetAddr,
-        connectTimeout = timeout,
-        options = ClamIO.socketOpts
+        connectTimeout = timeout
       )
       .recover {
         case err: StreamTcpException =>
@@ -60,7 +61,7 @@ class ClamIO(
    * Need a special flag to identify the first chunk, so we can ensure the
    * correct ClamAV command sequence can be injected in front of the stream.
    */
-  private var commandInitiated: Boolean = false
+  private[this] var commandInitiated: Boolean = false
 
   /**
    * The ClamAV protocol is very specific. This Flow aims to handle that.
@@ -71,15 +72,19 @@ class ClamIO(
    * a sequence of 4 bytes with the length of the following chunk as an
    * unsigned integer.
    */
-  private def stream =
+  private[this] def stream = {
     Flow[ByteString].mapConcat { bs =>
       val builder = immutable.Seq.newBuilder[ByteString]
+      // If this is the first ByteString we need to prefix with the Instream
+      // command to tell clamd that we're going to start a new scan.
       if (!commandInitiated) {
-        builder += Instream.cmd
-        // Switch the flag indicating that command is sent
         commandInitiated = true
+        builder += Instream.cmd
       }
 
+      // If the current chunk is not a command and not the StreamCompleted
+      // chunk we append the size of the next chunk as specified in the clamd
+      // docs.
       if (bs != StreamCompleted && !Command.isCommand(bs))
         builder += unsignedInt(bs.length)
 
@@ -87,18 +92,21 @@ class ClamIO(
     }.concat {
       // reset the command flag
       commandInitiated = false
-      // Close the stream
+      // Append the stream completed bytes to tell clamd the end is reached.
       Source.single(StreamCompleted)
     }
+  }
 
   /**
    * Sink implementation that yields a ScanResponse when it's completed.
    *
    * @param fname String with the name of the file being scanned
-   * @param ec       an implicit ExecutionContext
+   * @param ec    an implicit ExecutionContext
    * @return a `ClamSink`
    */
-  private def sink(fname: String)(implicit ec: ExecutionContext): ClamSink = {
+  private[this] def sink(
+      fname: String
+  )(implicit ec: ExecutionContext): ClamSink = {
 
     case class ScanState(chunkNum: Int = 0, result: String = "") {
       def append(chunk: ByteString): ScanState = {
@@ -110,12 +118,15 @@ class ClamIO(
 
       def validate: ScanResponse = {
         val res = result.trim
-        if (ClamProtocol.okResponse.equals(res)) {
+        if (OkResponse.equals(res)) {
           logger.debug(s"No viruses found in $fname")
           FileOk
-        } else if (ClamProtocol.unknownCommand.equals(res)) {
-          logger.warn(s"Command not recognized: $res")
+        } else if (UnknownCommand.equals(res)) {
+          logger.debug(s"Command not recognized: $res")
           ScanError(result)
+        } else if (res.startsWith(MaxSizeExceededResponse)) {
+          logger.debug(s"StreamMaxLength limit exceeded")
+          ScanError(MaxSizeExceededResponse)
         } else {
           logger.warn(s"Virus detected in $fname - $res")
           VirusFound(res)
@@ -125,7 +136,7 @@ class ClamIO(
 
     Sink
       .fold[ScanState, ByteString](ScanState()) { (state, chunk) =>
-        logger.debug(s"Processing new chunk ${state.chunkNum + 1}...\n")
+        logger.debug(s"Processing chunk ${state.chunkNum + 1}...")
         state.append(chunk)
       }
       .mapMaterializedValue { ss =>
@@ -133,6 +144,14 @@ class ClamIO(
         ss.map(_.validate)
       }
   }
+
+  // Helper for executing general commands against clamd
+  private[this] def execClamCommand(command: Command)(
+      implicit s: ActorSystem,
+      m: Materializer
+  ) =
+    (Source.single(command.cmd) via connection)
+      .runFold[String]("")((state, chunk) => s"$state${chunk.utf8String}")
 
   /**
    * The method setting up a `ClamSink` complete with source and TCP connection.
@@ -147,25 +166,17 @@ class ClamIO(
     (stream via connection).toMat(sink(filename))(Keep.right)
   }
 
-  // Helper for executing general commands against clamd
-  private def executeCommand(command: Command)(
-      implicit s: ActorSystem,
-      m: Materializer
-  ) =
-    (Source.single(command.cmd) via connection)
-      .runFold[String]("")((state, chunk) => s"$state${chunk.utf8String}")
-
   /**
    * Sends a PING command to clamd, expecting a PONG in response
    */
   def ping(implicit s: ActorSystem, m: Materializer): Future[String] =
-    executeCommand(Ping)
+    execClamCommand(Ping)
 
   /**
    * Ask clamd for the version string
    */
   def version(implicit s: ActorSystem, m: Materializer): Future[String] =
-    executeCommand(Version)
+    execClamCommand(Version)
 
   /**
    * Ask clamd for its internal stats
@@ -173,21 +184,28 @@ class ClamIO(
   def stats(
       implicit s: ActorSystem,
       m: Materializer
-  ): Future[String] = executeCommand(Stats)
+  ): Future[String] = execClamCommand(Stats)
 
 }
 
 object ClamIO {
 
-  val chunkSize = 262144
-  val socketOpts =
-    immutable.Traversable[Inet.SocketOption](SendBufferSize(chunkSize))
+  def apply(
+      host: String,
+      port: Int,
+      timeout: Duration,
+      maxBytes: Long
+  ): ClamIO =
+    new ClamIO(host, port, timeout, maxBytes)
 
-  /**
-   * Creates a new instance of a ClamSink
-   */
-  def apply(host: String, port: Int, timeout: Duration): ClamIO =
-    new ClamIO(host, port, timeout)
+  def apply(config: ClamConfig): ClamIO = {
+    new ClamIO(
+      host = config.host,
+      port = config.port,
+      timeout = config.timeout,
+      maxBytes = config.streamMaxLength
+    )
+  }
 
   /**
    * Returns a cancelled ClamSink.

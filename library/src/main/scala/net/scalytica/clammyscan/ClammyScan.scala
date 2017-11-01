@@ -12,6 +12,7 @@ import play.api.libs.Files.{TemporaryFile, TemporaryFileCreator}
 import play.api.libs.json.Json
 import play.api.libs.streams.Accumulator
 import play.api.mvc._
+import play.api.mvc.Results.{BadRequest, NotAcceptable}
 import play.api.{Configuration, Logger}
 import play.core.parsers.Multipart.FileInfo
 
@@ -41,23 +42,31 @@ trait ClammyScan { self =>
   /**
    * Scans file for virus and writes to a temporary file.
    */
-  def scanWithTmpFile(implicit e: ExecutionContext): ClamParser[TemporaryFile]
+  def scanWithTmpFile(
+      implicit exec: ExecutionContext
+  ): ClamParser[TemporaryFile]
 
   /**
    * Scans the file for virus without persisting.
    */
-  def scanOnly(implicit e: ExecutionContext): ClamParser[Unit]
+  def scanOnly(implicit exec: ExecutionContext): ClamParser[Unit]
 
-  def scanChunked[A](
+  def directScan[A](
       save: ToSaveSink[A],
       remove: A => Unit
-  )(implicit e: ExecutionContext): ChunkedClamParser[A]
+  )(implicit exec: ExecutionContext): ChunkedClamParser[A]
 
-  def ping(implicit e: ExecutionContext): Future[String]
+  def directScanWithTmpFile(
+      implicit exec: ExecutionContext
+  ): ChunkedClamParser[TemporaryFile]
 
-  def version(implicit e: ExecutionContext): Future[String]
+  def directScanOnly(implicit exec: ExecutionContext): ChunkedClamParser[Unit]
 
-  def stats(implicit e: ExecutionContext): Future[String]
+  def ping(implicit exec: ExecutionContext): Future[String]
+
+  def version(implicit exec: ExecutionContext): Future[String]
+
+  def stats(implicit exec: ExecutionContext): Future[String]
 
 }
 
@@ -80,8 +89,8 @@ abstract class BaseScanParser(
     clamConfig.validFilenameRegex.forall(
       regex =>
         regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
-          case Some(m) => false
-          case _       => true
+          case Some(_) => false
+          case None    => true
       }
     )
 
@@ -95,11 +104,7 @@ abstract class BaseScanParser(
       filename: String
   )(implicit ec: ExecutionContext) = {
     if (!clamConfig.scanDisabled) {
-      ClamIO(
-        host = clamConfig.host,
-        port = clamConfig.port,
-        timeout = clamConfig.timeout
-      ).scan(filename)
+      ClamIO(clamConfig).scan(filename)
     } else {
       // Scanning disabled
       cbpLogger.info(s"Scanning is disabled. $filename will not be scanned")
@@ -129,6 +134,18 @@ abstract class BaseScanParser(
       (errScan, errSave)
     }
 
+  private def exceptionRecovery: PartialFunction[Throwable, ScanError] = {
+    case ClammyException(err) =>
+      err
+
+    case stex: StreamTcpException =>
+      ScanError(stex.getMessage)
+
+    case ex =>
+      cbpLogger.error("An unhandled exception occurred", ex)
+      ScanError(unhandledException)
+  }
+
   /**
    * Graph that broadcasts each chunk from the incoming stream to both sinks,
    * before materializing the result from both into a `ScannedBody`.
@@ -136,7 +153,9 @@ abstract class BaseScanParser(
   protected def broadcastGraph[A](
       c: ClamSink,
       s: SaveSink[A]
-  )(implicit e: ExecutionContext): Sink[ByteString, Future[ScannedBody[A]]] =
+  )(
+      implicit exec: ExecutionContext
+  ): Sink[ByteString, Future[ScannedBody[A]]] = {
     Sink
       .fromGraph[ByteString, (Future[ScanResponse], Future[Option[A]])] {
         GraphDSL.create(c, s)((cs, ss) => (cs, ss)) { implicit b => (cs, ss) =>
@@ -151,16 +170,11 @@ abstract class BaseScanParser(
       }
       .mapMaterializedValue { mat =>
         for {
-          cr <- mat._1.recover {
-                 case ClammyException(err)     => err
-                 case stex: StreamTcpException => ScanError(stex.getMessage)
-                 case ex =>
-                   cbpLogger.error("", ex)
-                   ScanError(unhandledException)
-               }
+          cr <- mat._1.recover(exceptionRecovery)
           sr <- mat._2
         } yield ScannedBody(cr, sr)
       }
+  }
 
   /**
    * Function specifically for handling the ClamError cases in the
@@ -169,63 +183,51 @@ abstract class BaseScanParser(
    */
   protected def handleError[A](
       res: A,
-      err: ClamError
+      scanRes: ScanResponse
   )(
       remove: => Unit
-  ): Future[Either[Result, A]] = {
-    Future.successful {
-      err match {
-        case vf: VirusFound =>
-          // We have encountered the dreaded VIRUS...run awaaaaay
-          if (clamConfig.canRemoveInfectedFiles) {
-            remove
-            Left(Results.NotAcceptable(Json.obj("message" -> vf.message)))
-          } else {
-            // We cannot remove the uploaded file, so we return the parsed
-            // result back to the controller to let it handle it.
-            Right(res)
-          }
+  ): Either[Result, A] = {
+    scanRes match {
+      case vf: VirusFound =>
+        // We have encountered the dreaded VIRUS...run awaaaaay
+        if (clamConfig.canRemoveInfectedFiles) {
+          remove
+          Left(NotAcceptable(Json.obj("message" -> vf.message)))
+        } else {
+          // We cannot remove the uploaded file, so we return the parsed
+          // result back to the controller to let it handle it.
+          Right(res)
+        }
 
-        case clamError =>
-          if (clamConfig.canRemoveOnError) remove
-          if (clamConfig.shouldFailOnError) {
-            Left(Results.BadRequest(Json.obj("message" -> clamError.message)))
-          } else {
-            Right(res)
-          }
-      }
+      case clamError: ClamError =>
+        if (clamConfig.canRemoveOnError) remove
+        if (clamConfig.shouldFailOnError) {
+          Left(BadRequest(Json.obj("message" -> clamError.message)))
+        } else {
+          Right(res)
+        }
+
+      case _ => Right(res)
     }
   }
 
   /**
    * Execute a ping against clamd
    */
-  def ping(implicit e: ExecutionContext): Future[String] =
-    ClamIO(
-      host = clamConfig.host,
-      port = clamConfig.port,
-      timeout = clamConfig.timeout
-    ).ping
+  def ping(implicit exec: ExecutionContext): Future[String] =
+    ClamIO(clamConfig).ping
 
   /**
    * Get the clamd version string
    */
-  def version(implicit e: ExecutionContext): Future[String] =
-    ClamIO(
-      host = clamConfig.host,
-      port = clamConfig.port,
-      timeout = clamConfig.timeout
-    ).version
+  def version(implicit exec: ExecutionContext): Future[String] =
+    ClamIO(clamConfig).version
 
   /**
    * Get the clamd stats
    */
-  def stats(implicit e: ExecutionContext): Future[String] =
-    ClamIO(
-      host = clamConfig.host,
-      port = clamConfig.port,
-      timeout = clamConfig.timeout
-    ).stats
+  def stats(implicit exec: ExecutionContext): Future[String] =
+    ClamIO(clamConfig).stats
 
 }
 
@@ -240,31 +242,6 @@ class ClammyScanParser @Inject()(
     config: Configuration
 ) extends BaseScanParser(sys, mat, config) {
 
-  def scanChunked[A](
-      save: ToSaveSink[A],
-      remove: A => Unit
-  )(implicit e: ExecutionContext): ChunkedClamParser[A] = {
-    BodyParser { rh =>
-      val fname: String         = ""
-      val ctype: Option[String] = None
-      val theSinks              = sinks(fname, ctype)(save)
-      val comb                  = broadcastGraph(theSinks._1, theSinks._2)
-
-      Accumulator(comb).map { sb =>
-        sb.scanResponse match {
-          case err: ClamError =>
-            // Ooops...there seems to be a problem with the clamd result.
-            handleError(sb.maybeRef, err) {
-              sb.maybeRef.foreach(f => remove(f))
-            }
-          case FileOk =>
-            Future.successful(Right(sb.maybeRef))
-        }
-      }
-      ???
-    }
-  }
-
   def scan[A](
       save: ToSaveSink[A],
       remove: A => Unit
@@ -272,64 +249,95 @@ class ClammyScanParser @Inject()(
     bodyParsers
       .multipartFormData[ScannedBody[A]] {
         case FileInfo(partName, filename, contentType) =>
-          val theSinks = sinks(filename, contentType)(save)
-          val comb     = broadcastGraph(theSinks._1, theSinks._2)
+          val (clamSink, saveSink) = sinks(filename, contentType)(save)
+          val comb                 = broadcastGraph(clamSink, saveSink)
 
           Accumulator(comb).map { ref =>
             MultipartFormData.FilePart(partName, filename, contentType, ref)
           }
 
       }
-      .validateM((data: ClamMultipart[A]) => {
-        data.files.headOption
-          .map(
-            hf =>
-              hf.ref.scanResponse match {
-                case err: ClamError =>
-                  // Ooops...there seems to be a problem with the clamd result.
-                  val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
-                  handleError(data, err) {
-                    maybeFile.foreach(f => remove(f))
-                  }
-                case FileOk =>
-                  Future.successful(Right(data))
+      .validateM { (data: ClamMultipart[A]) =>
+        data.files.headOption.map { hf =>
+          hf.ref.scanResponse match {
+            case err: ClamError =>
+              val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
+              Future.successful {
+                handleError(data, err)(maybeFile.foreach(remove))
+              }
 
-            }
-          )
-          .getOrElse {
-            Future.successful {
-              Left(
-                Results.BadRequest(
-                  Json.obj(
-                    "message" -> "Unable to locate any files after scan result"
-                  )
+            case FileOk =>
+              Future.successful(Right(data))
+
+          }
+        }.getOrElse {
+          Future.successful {
+            Left(
+              BadRequest(
+                Json.obj(
+                  "message" -> "Unable to locate any files after scan result"
                 )
               )
-            }
+            )
           }
-      })
+        }
+      }
   }
 
   def scanWithTmpFile(
-      implicit e: ExecutionContext
-  ): ClamParser[TemporaryFile] =
-    scan[TemporaryFile](
-      save = { (fname, ctype) =>
-        val tf = tempFileCreator.create("multipartBody", "scanWithTempFile")
-        FileIO.toPath(tf.path).mapMaterializedValue { fio =>
-          fio.map(_ => Option(tf))
-        }
-      },
-      remove = tmpFile => tmpFile.delete()
-    )
+      implicit exec: ExecutionContext
+  ): ClamParser[TemporaryFile] = scan[TemporaryFile](
+    save = { (_, _) =>
+      val tf = tempFileCreator.create("multipartBody", "scanWithTempFile")
+      FileIO.toPath(tf.path).mapMaterializedValue(_.map(_ => Option(tf)))
+    },
+    remove = tmpFile => tmpFile.delete()
+  )
 
-  def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] =
-    scan[Unit](
-      save = (f, c) =>
-        Sink.cancelled[ByteString].mapMaterializedValue { notUsed =>
-          Future.successful(None)
-      },
-      remove = _ => cbpLogger.debug("Only scanning, no file to remove")
-    )
+  def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] = scan[Unit](
+    save = (_, _) => {
+      Sink
+        .cancelled[ByteString]
+        .mapMaterializedValue(_ => Future.successful(None))
+    },
+    remove = _ => cbpLogger.debug("Only scanning, no file to remove")
+  )
+
+  def directScan[A](
+      save: ToSaveSink[A],
+      remove: A => Unit
+  )(implicit exec: ExecutionContext): ChunkedClamParser[A] = BodyParser { rh =>
+    val fileName         = rh.getQueryString("filename").getOrElse("no_name")
+    val maybeContentType = rh.getQueryString("contentType")
+
+    val theSinks = sinks(fileName, maybeContentType)(save)
+    val comb     = broadcastGraph(theSinks._1, theSinks._2)
+
+    Accumulator(comb).map { sb =>
+      sb.scanResponse match {
+        case FileOk => Right(sb)
+        case e      => handleError(sb, e)(sb.maybeRef.foreach(f => remove(f)))
+      }
+    }
+  }
+
+  def directScanWithTmpFile(
+      implicit exec: ExecutionContext
+  ): ChunkedClamParser[TemporaryFile] = directScan[TemporaryFile](
+    save = (_, _) => {
+      val tempFile = tempFileCreator.create("requestBody", "asTemporaryFile")
+      val s = StreamConverters
+        .fromOutputStream(() => Files.newOutputStream(tempFile.toPath))
+        .mapMaterializedValue(_.map(_ => Option(tempFile)))
+      s
+    },
+    remove = tmpFile => tmpFile.delete()
+  )
+
+  def directScanOnly(
+      implicit exec: ExecutionContext
+  ): ChunkedClamParser[Unit] = {
+    ???
+  }
 
 }

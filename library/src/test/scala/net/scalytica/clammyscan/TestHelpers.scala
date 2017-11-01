@@ -31,12 +31,14 @@ trait TestResources { self =>
   val eicarFile    = fileAsSource("eicar.com")
   val eicarTxtFile = fileAsSource("eicar.com.txt")
   val eicarZipFile = fileAsSource("eicarcom2.zip")
+  val largeFile    = fileAsSource("large.zip")
 
   def fileAsSource(fname: String): FileSource =
     FileSource(
       fname,
       FileIO.fromPath(
-        Paths.get(self.getClass.getResource(s"/files/$fname").toURI)
+        f = Paths.get(self.getClass.getResource(s"/files/$fname").toURI),
+        chunkSize = 8192
       )
     )
 }

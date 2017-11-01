@@ -1,21 +1,32 @@
 <configuration>
 
-    <!-- Will append log message to the standard out -->
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>
-                %level %logger{15} - %message%n%xException{5}
-            </pattern>
-        </encoder>
-    </appender>
+  <conversionRule conversionWord="coloredLevel"
+                  converterClass="play.api.libs.logback.ColoredLevel"/>
 
-    <logger name="net.scalytica.clammyscan" level="OFF" additivity="false">
-        <appender-ref ref="STDOUT"/>
-    </logger>
+  <!-- Will append log message to the standard out -->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>
+        %coloredLevel %logger{15} - %message%n%xException{5}
+      </pattern>
+    </encoder>
+  </appender>
 
-    <!-- Root loggers catch all other events that are not explicitly handled-->
-    <root level="OFF">
-        <appender-ref ref="STDOUT"/>
-    </root>
+  <appender name="ASYNC_STDOUT" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="STDOUT"/>
+  </appender>
+
+  <logger name="net.scalytica.clammyscan" level="OFF" additivity="false">
+    <appender-ref ref="ASYNC_STDOUT"/>
+  </logger>
+
+  <!--<logger name="akka" level="DEBUG">-->
+  <!--<appender-ref ref="ASYNC_STDOUT"/>-->
+  <!--</logger>-->
+
+  <!-- Root loggers catch all other events that are not explicitly handled-->
+  <root level="OFF">
+    <appender-ref ref="ASYNC_STDOUT"/>
+  </root>
 
 </configuration>

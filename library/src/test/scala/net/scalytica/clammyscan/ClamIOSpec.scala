@@ -30,7 +30,7 @@ class ClamIOSpec
     new ClamConfig(play.api.Configuration(c))
   }
 
-  val clamIO = ClamIO(conf.host, conf.port, conf.timeout)
+  val clamIO = ClamIO(conf.host, conf.port, conf.timeout, conf.streamMaxLength)
 
   "A ClamIO" which {
 
@@ -61,6 +61,16 @@ class ClamIOSpec
           10 seconds
         )
         res shouldBe a[VirusFound]
+      }
+    }
+
+    "receives a large file as a stream" should {
+      "result in a scan error" in {
+        val res = Await.result(
+          largeFile.source runWith clamIO.scan(largeFile.fname),
+          10 seconds
+        )
+        res shouldBe a[ScanError]
       }
     }
 

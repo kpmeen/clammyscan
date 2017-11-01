@@ -11,6 +11,7 @@ import play.api.libs.Files.{TemporaryFile, TemporaryFileCreator}
 import play.api.libs.json.Json
 import play.api.mvc.MultipartFormData.FilePart
 import play.api.mvc.{PlayBodyParsers, _}
+import play.api.mvc.Results._
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 
@@ -25,7 +26,7 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
 
   val baseExtraConfig: Map[String, Any] = Map(
     "akka.jvm-exit-on-fatal-error" -> false,
-    "akka.loglevel"                -> "INFO",
+    "akka.loglevel"                -> "DEBUG",
     "akka.loggers"                 -> Seq("akka.event.slf4j.Slf4jLogger"),
     "logging-filter"               -> "akka.event.slf4j.Slf4jLoggingFilter"
   )
@@ -69,45 +70,68 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
     }
   }
 
-  def scanner[A](
+  def multipartScanner[A](
       scan: ClamParser[A]
   )(
       f: (ScannedBody[A]) => Result
   ): Action[ClamMultipart[A]] = new ActionBuilderImpl(scan).apply { req =>
-    req.body.files.headOption.map { fp =>
-      f(fp.ref)
-    }.getOrElse(
-      Results.ExpectationFailed(
-        Json.obj("message" -> "Multipart with no content")
+    req.body.files.headOption
+      .map(fp => f(fp.ref))
+      .getOrElse(
+        ExpectationFailed(Json.obj("message" -> "Multipart with no content"))
       )
-    )
   }
 
+  def directScanner[A](
+      scan: ChunkedClamParser[A]
+  )(
+      f: (ScannedBody[A]) => Result
+  ): Action[ScannedBody[A]] = new ActionBuilderImpl(scan).apply(r => f(r.body))
+
   def scanOnlyAction(parser: ClammyScanParser): EssentialAction = {
-    scanner[Unit](parser.scanOnly) { tr =>
+    multipartScanner[Unit](parser.scanOnly) { tr =>
       tr.scanResponse match {
         case FileOk =>
           tr.maybeRef.map { _ =>
-            Results.ExpectationFailed(
+            ExpectationFailed(
               Json.obj("message" -> "File should not be persisted")
             )
-          }.getOrElse(Results.Ok)
+          }.getOrElse(Ok)
 
         case vf: VirusFound =>
-          Results.NotAcceptable(Json.obj("message" -> vf.message))
+          NotAcceptable(Json.obj("message" -> vf.message))
 
         case ce: ClamError =>
-          Results.BadRequest(Json.obj("message" -> ce.message))
+          BadRequest(Json.obj("message" -> ce.message))
+      }
+    }
+  }
+
+  def directScanOnlyAction(parser: ClammyScanParser): EssentialAction = {
+    directScanner[Unit](parser.directScanOnly) { sb =>
+      sb.scanResponse match {
+        case FileOk =>
+          sb.maybeRef.map { _ =>
+            ExpectationFailed(
+              Json.obj("message" -> "File should not be persisted")
+            )
+          }.getOrElse(Ok)
+
+        case vf: VirusFound =>
+          NotAcceptable(Json.obj("message" -> vf.message))
+
+        case ce: ClamError =>
+          BadRequest(Json.obj("message" -> ce.message))
       }
     }
   }
 
   def scanTmpAction(parser: ClammyScanParser): EssentialAction = {
-    scanner[TemporaryFile](parser.scanWithTmpFile) { tr =>
+    multipartScanner[TemporaryFile](parser.scanWithTmpFile) { tr =>
       tr.scanResponse match {
         case FileOk =>
-          tr.maybeRef.map(_ => Results.Ok).getOrElse {
-            Results.ExpectationFailed(
+          tr.maybeRef.map(_ => Ok).getOrElse {
+            ExpectationFailed(
               Json.obj("message" -> "File should be persisted")
             )
           }
@@ -115,26 +139,24 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
         case vf: VirusFound =>
           if (parser.clamConfig.canRemoveInfectedFiles) {
             tr.maybeRef.map { _ =>
-              Results.ExpectationFailed(
+              ExpectationFailed(
                 Json.obj("message" -> "File should not be persisted")
               )
             }.getOrElse {
-              Results.NotAcceptable(
-                Json.obj("message" -> vf.message)
-              )
+              NotAcceptable(Json.obj("message" -> vf.message))
             }
           } else {
             tr.maybeRef.map { _ =>
-              Results.NotAcceptable(Json.obj("message" -> vf.message))
+              NotAcceptable(Json.obj("message" -> vf.message))
             }.getOrElse {
-              Results.ExpectationFailed(
+              ExpectationFailed(
                 Json.obj("message" -> "File should be persisted")
               )
             }
           }
 
         case ce: ClamError =>
-          Results.BadRequest(Json.obj("message" -> ce.message))
+          BadRequest(Json.obj("message" -> ce.message))
       }
     }
   }
@@ -144,7 +166,7 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
       contentType: Option[String] = None,
       alternativeFilename: Option[String] = None
   )(implicit ctx: Context): FakeRequest[AnyContentAsMultipartFormData] = {
-    implicit val mat = ctx.materializer
+    implicit val mat: Materializer = ctx.materializer
 
     val tmpFile = ctx.tempFileCreator.create("test", s"${System.nanoTime}")
     val f = fileSource.source runWith FileIO
@@ -163,6 +185,7 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
       ),
       badParts = Seq.empty
     )
+
     FakeRequest(POST, "/").withMultipartFormDataBody(mfd)
   }
 

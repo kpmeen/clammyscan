@@ -26,17 +26,18 @@ function status {
 }
 
 function start {
-  CLAMMY_EXISTS=$( docker ps --quiet --filter name=clammy )
+  CLAMMY_EXISTS=$( docker ps -a --quiet --filter name=clammy )
 
   if [[ -n "$CLAMMY_EXISTS" ]]; then
     echo "Starting ClamAV docker container..."
     docker start $CONTAINER_NAME
   else
-    docker run --name $CONTAINER_NAME -d -p 3310:3310 kpmeen/docker-clamav
+    # Starting clam with a StreamMaxLength to 2M to easily trigger file size limit
+    docker run --name $CONTAINER_NAME -d -p 3310:3310 kpmeen/docker-clamav -m 2M
   fi
 
-  echo "To tail the log of ClamAV run the following command:\n"
-  echo "   docker exec -it $CONTAINER_NAME tail -300f /var/log/clamav/clamav.log\n"
+  echo "To tail the log of ClamAV run the following command:"
+  echo "   docker exec -it $CONTAINER_NAME tail -300f /var/log/clamav/clamav.log"
 }
 
 
