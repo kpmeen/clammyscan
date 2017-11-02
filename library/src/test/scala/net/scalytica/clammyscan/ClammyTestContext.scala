@@ -2,6 +2,7 @@ package net.scalytica.clammyscan
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.FileIO
+import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import org.scalatest._
 import play.api.Configuration
@@ -18,6 +19,7 @@ import play.api.test.Helpers._
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 
 /**
  * Base spec to test the ClammyScan parsers through `EssentialAction`.
@@ -88,80 +90,80 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
       f: (ScannedBody[A]) => Result
   ): Action[ScannedBody[A]] = new ActionBuilderImpl(scan).apply(r => f(r.body))
 
-  def scanOnlyAction(parser: ClammyScanParser): EssentialAction = {
-    multipartScanner[Unit](parser.scanOnly) { tr =>
-      tr.scanResponse match {
-        case FileOk =>
-          tr.maybeRef.map { _ =>
-            ExpectationFailed(
-              Json.obj("message" -> "File should not be persisted")
-            )
-          }.getOrElse(Ok)
+  private[this] def scanOnlyResHandler(sb: ScannedBody[Unit]): Result = {
+    sb.scanResponse match {
+      case FileOk =>
+        sb.maybeRef.map { _ =>
+          ExpectationFailed(
+            Json.obj("message" -> "File should not be persisted")
+          )
+        }.getOrElse(Ok)
 
-        case vf: VirusFound =>
-          NotAcceptable(Json.obj("message" -> vf.message))
+      case vf: VirusFound =>
+        NotAcceptable(Json.obj("message" -> vf.message))
 
-        case ce: ClamError =>
-          BadRequest(Json.obj("message" -> ce.message))
-      }
+      case ce: ClamError =>
+        BadRequest(Json.obj("message" -> ce.message))
     }
   }
 
-  def directScanOnlyAction(parser: ClammyScanParser): EssentialAction = {
-    directScanner[Unit](parser.directScanOnly) { sb =>
-      sb.scanResponse match {
-        case FileOk =>
+  private[this] def scanTmpResHandler[A: ClassTag](
+      parser: ClammyScanParser,
+      sb: ScannedBody[A]
+  ): Result = {
+    sb.scanResponse match {
+      case FileOk =>
+        sb.maybeRef.map(_ => Ok).getOrElse {
+          ExpectationFailed(
+            Json.obj("message" -> "File should be persisted")
+          )
+        }
+
+      case vf: VirusFound =>
+        if (parser.clamConfig.canRemoveInfectedFiles) {
           sb.maybeRef.map { _ =>
             ExpectationFailed(
               Json.obj("message" -> "File should not be persisted")
             )
-          }.getOrElse(Ok)
-
-        case vf: VirusFound =>
-          NotAcceptable(Json.obj("message" -> vf.message))
-
-        case ce: ClamError =>
-          BadRequest(Json.obj("message" -> ce.message))
-      }
-    }
-  }
-
-  def scanTmpAction(parser: ClammyScanParser): EssentialAction = {
-    multipartScanner[TemporaryFile](parser.scanWithTmpFile) { tr =>
-      tr.scanResponse match {
-        case FileOk =>
-          tr.maybeRef.map(_ => Ok).getOrElse {
+          }.getOrElse {
+            NotAcceptable(Json.obj("message" -> vf.message))
+          }
+        } else {
+          sb.maybeRef.map { _ =>
+            NotAcceptable(Json.obj("message" -> vf.message))
+          }.getOrElse {
             ExpectationFailed(
               Json.obj("message" -> "File should be persisted")
             )
           }
+        }
 
-        case vf: VirusFound =>
-          if (parser.clamConfig.canRemoveInfectedFiles) {
-            tr.maybeRef.map { _ =>
-              ExpectationFailed(
-                Json.obj("message" -> "File should not be persisted")
-              )
-            }.getOrElse {
-              NotAcceptable(Json.obj("message" -> vf.message))
-            }
-          } else {
-            tr.maybeRef.map { _ =>
-              NotAcceptable(Json.obj("message" -> vf.message))
-            }.getOrElse {
-              ExpectationFailed(
-                Json.obj("message" -> "File should be persisted")
-              )
-            }
-          }
-
-        case ce: ClamError =>
-          BadRequest(Json.obj("message" -> ce.message))
-      }
+      case ce: ClamError =>
+        BadRequest(Json.obj("message" -> ce.message))
     }
   }
 
-  def fakeReq(
+  def scanOnlyAction(parser: ClammyScanParser): EssentialAction = {
+    multipartScanner[Unit](parser.scanOnly)(scanOnlyResHandler)
+  }
+
+  def directScanOnlyAction(parser: ClammyScanParser): EssentialAction = {
+    directScanner[Unit](parser.directScanOnly)(scanOnlyResHandler)
+  }
+
+  def scanTmpAction(parser: ClammyScanParser): EssentialAction = {
+    multipartScanner[TemporaryFile](parser.scanWithTmpFile) { sb =>
+      scanTmpResHandler(parser, sb)
+    }
+  }
+
+  def directTmpAction(parser: ClammyScanParser): EssentialAction = {
+    directScanner[TemporaryFile](parser.directScanWithTmpFile) { sb =>
+      scanTmpResHandler(parser, sb)
+    }
+  }
+
+  def fakeMultipartRequest(
       fileSource: FileSource,
       contentType: Option[String] = None,
       alternativeFilename: Option[String] = None
@@ -187,6 +189,29 @@ trait ClammyTestContext extends WordSpecLike with MustMatchers {
     )
 
     FakeRequest(POST, "/").withMultipartFormDataBody(mfd)
+  }
+
+  def fakeDirectRequest(
+      fileSource: FileSource,
+      contentType: Option[String] = None,
+      alternativeFilename: Option[String] = None
+  )(implicit ctx: Context): FakeRequest[AnyContentAsRaw] = {
+    implicit val mat: Materializer = ctx.materializer
+
+    val uri1 = alternativeFilename.map(f => s"/?filename=$f").getOrElse("/")
+    val uri = contentType.map { ct =>
+      if (uri1.contains("?")) s"$uri1&contentType=$ct"
+      else s"$uri1?contentType=$ct"
+    }.getOrElse(uri1)
+
+    val body = Await.result(
+      fileSource.source.runFold(ByteString.empty) { (bytes, chunk) =>
+        bytes.concat(chunk)
+      },
+      2 seconds
+    )
+
+    FakeRequest(POST, uri).withRawBody(body)
   }
 
 }

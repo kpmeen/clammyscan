@@ -336,8 +336,13 @@ class ClammyScanParser @Inject()(
 
   def directScanOnly(
       implicit exec: ExecutionContext
-  ): ChunkedClamParser[Unit] = {
-    ???
-  }
+  ): ChunkedClamParser[Unit] = directScan[Unit](
+    save = (_, _) => {
+      Sink
+        .cancelled[ByteString]
+        .mapMaterializedValue(_ => Future.successful(None))
+    },
+    remove = _ => cbpLogger.debug("Only scanning, no file to remove")
+  )
 
 }

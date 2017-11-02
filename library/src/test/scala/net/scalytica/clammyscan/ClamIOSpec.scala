@@ -70,7 +70,13 @@ class ClamIOSpec
           largeFile.source runWith clamIO.scan(largeFile.fname),
           10 seconds
         )
-        res shouldBe a[ScanError]
+        res match {
+          case err: ScanError =>
+            err.message should include(ClamProtocol.MaxSizeExceededResponse)
+
+          case bad =>
+            fail(s"Expected ScanError but got ${bad.getClass}")
+        }
       }
     }
 

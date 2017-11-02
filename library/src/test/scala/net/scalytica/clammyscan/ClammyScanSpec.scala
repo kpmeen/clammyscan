@@ -38,7 +38,7 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       result: Result,
       expectedStatusCode: Int,
       expectedBody: Option[String] = None
-  )(ctx: Context): Unit = {
+  )(implicit ctx: Context): Unit = {
     implicit val mat = ctx.materializer
 
     result.header.status mustEqual expectedStatusCode
@@ -55,23 +55,32 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
 
     "clamd is not available" should {
 
-      val unavailableConfig: Map[String, Any] =
+      val unavailableConf: Map[String, Any] =
         Map("clammyscan.clamd.port" -> "3333")
 
       "fail when scanOnly is used" in
-        withScanAction(scanOnlyAction, unavailableConfig) { implicit ctx =>
-          val request = fakeReq(eicarZipFile, Some("application/zip"))
-          val result  = ctx.awaitResult(request)
+        withScanAction(scanOnlyAction, unavailableConf) { implicit ctx =>
+          val request =
+            fakeMultipartRequest(eicarZipFile, Some("application/zip"))
+          val result = ctx.awaitResult(request)
 
-          validateResult(result, BAD_REQUEST, clamdUnavailableResult)(ctx)
+          validateResult(result, BAD_REQUEST, clamdUnavailableResult)
         }
 
       "fail the AV scan and keep the file when scanWithTmpFile is used" in
-        withScanAction(scanTmpAction, unavailableConfig) { implicit ctx =>
-          val request = fakeReq(eicarFile, None)
+        withScanAction(scanTmpAction, unavailableConf) { implicit ctx =>
+          val request = fakeMultipartRequest(eicarFile, None)
           val result  = ctx.awaitResult(request)
 
-          validateResult(result, BAD_REQUEST, clamdUnavailableResult)(ctx)
+          validateResult(result, BAD_REQUEST, clamdUnavailableResult)
+        }
+
+      "fail when directScanOnly is used" in
+        withScanAction(directScanOnlyAction, unavailableConf) { implicit ctx =>
+          val request = fakeDirectRequest(eicarFile, None)
+          val result  = ctx.awaitResult(request)
+
+          validateResult(result, BAD_REQUEST, clamdUnavailableResult)
         }
     }
 
@@ -79,22 +88,30 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
       val disabledConfig: Map[String, Any] =
         Map("clammyscan.scanDisabled" -> true)
 
-      "return OK when only scanning" in {
+      "return OK when only scanning multipart file" in
+        withScanAction(scanOnlyAction, disabledConfig) { implicit ctx =>
+          val request =
+            fakeMultipartRequest(eicarZipFile, Some("application/zip"))
+          val result = ctx.awaitResult(request)
+
+          validateResult(result, OK, None)
+        }
+
+      "skip the AV scan an keep the file when uploading multipart file" in
         withScanAction(scanTmpAction, disabledConfig) { implicit ctx =>
-          val request = fakeReq(eicarZipFile, Some("application/zip"))
+          val request = fakeMultipartRequest(eicarFile, Some("application/txt"))
           val result  = ctx.awaitResult(request)
 
-          validateResult(result, OK, None)(ctx)
+          validateResult(result, OK, None)
         }
-      }
-      "skip the AV scan an keep the file" in {
-        withScanAction(scanTmpAction, disabledConfig) { implicit ctx =>
-          val request = fakeReq(eicarFile, Some("application/zip"))
+
+      "return OK when only scanning direct upload file" in
+        withScanAction(directScanOnlyAction, disabledConfig) { implicit ctx =>
+          val request = fakeDirectRequest(eicarZipFile, Some("application/zip"))
           val result  = ctx.awaitResult(request)
 
-          validateResult(result, OK, None)(ctx)
+          validateResult(result, OK, None)
         }
-      }
     }
   }
 
@@ -103,30 +120,61 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
     "receives a multipart file for scanning only" should {
       "scan infected file and not persist the file" in
         withScanAction(scanOnlyAction) { implicit ctx =>
-          val request = fakeReq(eicarZipFile, Some("application/zip"))
-          val result  = ctx.awaitResult(request)
+          val request =
+            fakeMultipartRequest(eicarZipFile, Some("application/zip"))
+          val result = ctx.awaitResult(request)
 
-          validateResult(result, NOT_ACCEPTABLE, eicarResult)(ctx)
+          validateResult(result, NOT_ACCEPTABLE, eicarResult)
         }
 
       "scan clean file and not persist the file" in
         withScanAction(scanOnlyAction) { implicit ctx =>
-          val request = fakeReq(cleanFile, Some("application/pdf"))
+          val request = fakeMultipartRequest(cleanFile, Some("application/pdf"))
           val result  = ctx.awaitResult(request)
 
-          validateResult(result, OK, None)(ctx)
+          validateResult(result, OK, None)
         }
 
-      "fail scanning when file is larger than clam config" in
+      "fail scanning file when size is larger than clam config" in
         withScanAction(scanOnlyAction) { implicit ctx =>
-          val request = fakeReq(largeFile, Some("application/zip"))
+          val request = fakeMultipartRequest(largeFile, Some("application/zip"))
           val result  = ctx.awaitResult(request)
 
           validateResult(
             result,
             BAD_REQUEST,
             Some(ClamProtocol.MaxSizeExceededResponse)
-          )(ctx)
+          )
+        }
+    }
+
+    "recieves a direct upload file for scanning only" should {
+      "scan infected file and not persist the file" in
+        withScanAction(directScanOnlyAction) { implicit ctx =>
+          val request = fakeDirectRequest(eicarZipFile, Some("application/zip"))
+          val result  = ctx.awaitResult(request)
+
+          validateResult(result, NOT_ACCEPTABLE, eicarResult)
+        }
+
+      "scan clean file and not persist the file" in
+        withScanAction(directScanOnlyAction) { implicit ctx =>
+          val request = fakeDirectRequest(cleanFile, Some("application/pdf"))
+          val result  = ctx.awaitResult(request)
+
+          validateResult(result, OK, None)
+        }
+
+      "fail scanning file when size is larger than clam config" in
+        withScanAction(directScanOnlyAction) { implicit ctx =>
+          val request = fakeDirectRequest(largeFile, Some("application/zip"))
+          val result  = ctx.awaitResult(request)
+
+          validateResult(
+            result,
+            BAD_REQUEST,
+            Some(ClamProtocol.MaxSizeExceededResponse)
+          )
         }
     }
 
@@ -134,24 +182,24 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
 
       "scan infected file and remove the temp file" in
         withScanAction(scanTmpAction) { implicit ctx =>
-          val request = fakeReq(eicarFile, None)
+          val request = fakeMultipartRequest(eicarFile, None)
           val result  = ctx.awaitResult(request)
 
-          validateResult(result, NOT_ACCEPTABLE, eicarResult)(ctx)
+          validateResult(result, NOT_ACCEPTABLE, eicarResult)
         }
 
       "scan clean file and not remove the temp file" in
         withScanAction(scanTmpAction) { implicit ctx =>
-          val request = fakeReq(cleanFile, Some("application/pdf"))
+          val request = fakeMultipartRequest(cleanFile, Some("application/pdf"))
           val result  = ctx.awaitResult(request)
 
-          validateResult(result, OK, None)(ctx)
+          validateResult(result, OK, None)
         }
 
       "reject the file if the name doesn't comply to filename rules" in
         withScanAction(scanTmpAction) { implicit ctx =>
           val bad = "some:<bad>?filename"
-          val request = fakeReq(
+          val request = fakeMultipartRequest(
             fileSource = cleanFile,
             contentType = Some("application/pdf"),
             alternativeFilename = Some(bad)
@@ -164,7 +212,45 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
             Some(
               s"""{"message":"Filename $bad contains illegal characters"}"""
             )
-          )(ctx)
+          )
+        }
+    }
+
+    "receives a direct file for scanning and saving as temp file" should {
+
+      "scan infected file and remove the temp file" in
+        withScanAction(directTmpAction) { implicit ctx =>
+          val request = fakeDirectRequest(eicarFile, None)
+          val result  = ctx.awaitResult(request)
+
+          validateResult(result, NOT_ACCEPTABLE, eicarResult)
+        }
+
+      "scan clean file and not remove the temp file" in
+        withScanAction(directTmpAction) { implicit ctx =>
+          val request = fakeDirectRequest(cleanFile, Some("application/pdf"))
+          val result  = ctx.awaitResult(request)
+
+          validateResult(result, OK, None)
+        }
+
+      "reject the file if the name doesn't comply to filename rules" in
+        withScanAction(directTmpAction) { implicit ctx =>
+          val bad = "some:<bad>?filename"
+          val request = fakeDirectRequest(
+            fileSource = cleanFile,
+            contentType = Some("application/pdf"),
+            alternativeFilename = Some(bad)
+          )
+          val result = ctx.awaitResult(request)
+
+          validateResult(
+            result,
+            BAD_REQUEST,
+            Some(
+              s"""{"message":"Filename $bad contains illegal characters"}"""
+            )
+          )
         }
     }
   }
@@ -174,12 +260,26 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
     val doNotRemoveInfectedConfig: Map[String, Any] =
       Map("clammyscan.removeInfected" -> false)
 
-    "should not remove the infected file" in
-      withScanAction(scanTmpAction, doNotRemoveInfectedConfig) { implicit ctx =>
-        val request = fakeReq(eicarFile, None)
-        val result  = ctx.awaitResult(request)
+    "recieves a multipart file upload" should {
+      "not remove the infected file" in
+        withScanAction(scanTmpAction, doNotRemoveInfectedConfig) {
+          implicit ctx =>
+            val request = fakeMultipartRequest(eicarFile, None)
+            val result  = ctx.awaitResult(request)
 
-        validateResult(result, NOT_ACCEPTABLE, eicarResult)(ctx)
-      }
+            validateResult(result, NOT_ACCEPTABLE, eicarResult)
+        }
+    }
+
+    "recieves a direct file upload" should {
+      "not remove the infected file" in
+        withScanAction(directTmpAction, doNotRemoveInfectedConfig) {
+          implicit ctx =>
+            val request = fakeDirectRequest(eicarFile, None)
+            val result  = ctx.awaitResult(request)
+
+            validateResult(result, NOT_ACCEPTABLE, eicarResult)
+        }
+    }
   }
 }
