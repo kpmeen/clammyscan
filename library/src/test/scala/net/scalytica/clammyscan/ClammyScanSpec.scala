@@ -124,8 +124,8 @@ class ClammyScanSpec extends ClammyTestContext with TestResources {
 
           validateResult(
             result,
-            BAD_REQUEST
-//            ,Some(ClamProtocol.MaxSizeExceededResponse)
+            BAD_REQUEST,
+            Some(ClamProtocol.MaxSizeExceededResponse)
           )(ctx)
         }
     }

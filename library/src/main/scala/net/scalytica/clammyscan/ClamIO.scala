@@ -3,8 +3,8 @@ package net.scalytica.clammyscan
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
+import akka.stream._
 import akka.stream.scaladsl.{Tcp, _}
-import akka.stream.{Materializer, StreamTcpException}
 import akka.util.ByteString
 import net.scalytica.clammyscan.ClamProtocol._
 import net.scalytica.clammyscan.UnsignedInt._
@@ -64,6 +64,22 @@ class ClamIO(
   private[this] var commandInitiated: Boolean = false
 
   /**
+   * Flow that builds chunks of expected size from the incoming elements
+   */
+  private[this] def chunker = Flow[ByteString].mapConcat { bs =>
+    val b = immutable.Seq.newBuilder[ByteString]
+
+    logger.debug(s"Incoming chunk size is: ${bs.size}")
+
+    val chunks = {
+      if (bs.size > ClamIO.maxChunkSize) b ++= bs.grouped(ClamIO.maxChunkSize)
+      else b += bs
+    }.result()
+
+    chunks
+  }
+
+  /**
    * The ClamAV protocol is very specific. This Flow aims to handle that.
    *
    * All communications must start with a specific command. Depending on the
@@ -73,7 +89,7 @@ class ClamIO(
    * unsigned integer.
    */
   private[this] def stream = {
-    Flow[ByteString].mapConcat { bs =>
+    chunker.mapConcat { bs =>
       val builder = immutable.Seq.newBuilder[ByteString]
       // If this is the first ByteString we need to prefix with the Instream
       // command to tell clamd that we're going to start a new scan.
@@ -126,7 +142,7 @@ class ClamIO(
           ScanError(result)
         } else if (res.startsWith(MaxSizeExceededResponse)) {
           logger.debug(s"StreamMaxLength limit exceeded")
-          ScanError(MaxSizeExceededResponse)
+          ScanError(s"Can't scan $fname because: $MaxSizeExceededResponse")
         } else {
           logger.warn(s"Virus detected in $fname - $res")
           VirusFound(res)
@@ -135,14 +151,8 @@ class ClamIO(
     }
 
     Sink
-      .fold[ScanState, ByteString](ScanState()) { (state, chunk) =>
-        logger.debug(s"Processing chunk ${state.chunkNum + 1}...")
-        state.append(chunk)
-      }
-      .mapMaterializedValue { ss =>
-        logger.debug("Materializing result...")
-        ss.map(_.validate)
-      }
+      .fold[ScanState, ByteString](ScanState())((s, c) => s.append(c))
+      .mapMaterializedValue(ss => ss.map(_.validate))
   }
 
   // Helper for executing general commands against clamd
@@ -189,6 +199,8 @@ class ClamIO(
 }
 
 object ClamIO {
+
+  val maxChunkSize: Int = 262144
 
   def apply(
       host: String,
