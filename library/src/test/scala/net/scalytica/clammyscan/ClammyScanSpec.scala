@@ -8,27 +8,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class ClammyScanSpec extends ClammyTestContext with TestResources {
-  /*
-    FIXME: Current tests are not testing the streaming aspect.
-
-    The spec should be modified to extend PlaySpec and GuiceOneServerPerSuite.
-
-    This will allow testing using a fake application with custom routes as
-    follows:
-
-    override def fakeApplication(): Application =
-      new GuiceApplicationBuilder()
-        .disable[EhCacheModule]
-        .router(
-          Router.from {
-            case POST(p"/scanOnly")    => scanOnlyAction
-            case POST(p"/scanTmpFile") => scanTmpAction
-            case ...
-          }
-        )
-        .build()
-
-   */
 
   /**
    * IMPORTANT: This function relies heavily on the validation done in the

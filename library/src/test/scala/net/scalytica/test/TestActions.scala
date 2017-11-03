@@ -1,0 +1,117 @@
+package net.scalytica.test
+
+import net.scalytica.clammyscan._
+import play.api.libs.Files.TemporaryFile
+import play.api.libs.json.Json
+import play.api.mvc._
+import play.api.mvc.Results.{BadRequest, ExpectationFailed, NotAcceptable, Ok}
+
+import scala.concurrent.ExecutionContext
+import scala.reflect.ClassTag
+
+trait TestActions {
+
+  type TestActionBuilder = ActionBuilder[Request, AnyContent]
+
+  def multipartScanner[A](
+      scan: ClamParser[A]
+  )(
+      f: (ScannedBody[A]) => Result
+  )(implicit ec: ExecutionContext): Action[ClamMultipart[A]] =
+    new ActionBuilderImpl(scan).apply { req =>
+      req.body.files.headOption
+        .map(fp => f(fp.ref))
+        .getOrElse(
+          ExpectationFailed(Json.obj("message" -> "Multipart with no content"))
+        )
+    }
+
+  def directScanner[A](
+      scan: ChunkedClamParser[A]
+  )(
+      f: (ScannedBody[A]) => Result
+  )(implicit ec: ExecutionContext): Action[ScannedBody[A]] =
+    new ActionBuilderImpl(scan).apply(r => f(r.body))
+
+  private[this] def scanOnlyResHandler(sb: ScannedBody[Unit]): Result = {
+    sb.scanResponse match {
+      case FileOk =>
+        sb.maybeRef.map { _ =>
+          ExpectationFailed(
+            Json.obj("message" -> "File should not be persisted")
+          )
+        }.getOrElse(Ok)
+
+      case vf: VirusFound =>
+        NotAcceptable(Json.obj("message" -> vf.message))
+
+      case ce: ClamError =>
+        BadRequest(Json.obj("message" -> ce.message))
+    }
+  }
+
+  private[this] def scanTmpResHandler[A: ClassTag](
+      parser: ClammyScanParser,
+      sb: ScannedBody[A]
+  ): Result = {
+    sb.scanResponse match {
+      case FileOk =>
+        sb.maybeRef.map(_ => Ok).getOrElse {
+          ExpectationFailed(
+            Json.obj("message" -> "File should be persisted")
+          )
+        }
+
+      case vf: VirusFound =>
+        if (parser.clamConfig.canRemoveInfectedFiles) {
+          sb.maybeRef.map { _ =>
+            ExpectationFailed(
+              Json.obj("message" -> "File should not be persisted")
+            )
+          }.getOrElse {
+            NotAcceptable(Json.obj("message" -> vf.message))
+          }
+        } else {
+          sb.maybeRef.map { _ =>
+            NotAcceptable(Json.obj("message" -> vf.message))
+          }.getOrElse {
+            ExpectationFailed(
+              Json.obj("message" -> "File should be persisted")
+            )
+          }
+        }
+
+      case ce: ClamError =>
+        BadRequest(Json.obj("message" -> ce.message))
+    }
+  }
+
+  def scanOnlyAction(
+      parser: ClammyScanParser
+  )(implicit ec: ExecutionContext): EssentialAction = {
+    multipartScanner[Unit](parser.scanOnly)(scanOnlyResHandler)
+  }
+
+  def directScanOnlyAction(
+      parser: ClammyScanParser
+  )(implicit ec: ExecutionContext): EssentialAction = {
+    directScanner[Unit](parser.directScanOnly)(scanOnlyResHandler)
+  }
+
+  def scanTmpAction(
+      parser: ClammyScanParser
+  )(implicit ec: ExecutionContext): EssentialAction = {
+    multipartScanner[TemporaryFile](parser.scanWithTmpFile) { sb =>
+      scanTmpResHandler(parser, sb)
+    }
+  }
+
+  def directTmpAction(
+      parser: ClammyScanParser
+  )(implicit ec: ExecutionContext): EssentialAction = {
+    directScanner[TemporaryFile](parser.directScanWithTmpFile) { sb =>
+      scanTmpResHandler(parser, sb)
+    }
+  }
+
+}
