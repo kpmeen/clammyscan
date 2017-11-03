@@ -24,10 +24,8 @@ lazy val library = ClammyProject("clammyscan", Some("library"))
 lazy val sample = ClammyProject("sample")
   .enablePlugins(PlayScala)
   .settings(
-    Seq(
-      routesGenerator := InjectedRoutesGenerator,
-      RoutesKeys.routesImport := Seq.empty
-    )
+    routesGenerator := InjectedRoutesGenerator,
+    RoutesKeys.routesImport := Seq.empty
   )
   .settings(coverageEnabled := false)
   .settings(resolvers += Resolver.mavenLocal)
