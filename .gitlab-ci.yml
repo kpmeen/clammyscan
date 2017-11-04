@@ -1,7 +1,7 @@
 ######################################################################
 # GitLab CI build script for the ClammyScan project                   #
 ######################################################################
-image: kpmeen/docker-clammyscan-builder
+image: kpmeen/docker-scala-sbt
 
 variables:
   DOCKER_DRIVER: overlay
@@ -16,7 +16,7 @@ cache:
     - cache
 
 services:
-  - name: kpmeen/docker-clamav -m 2M
+  - name: kpmeen/docker-clamav
     alias: clammy
     command: ["-m", "2M"]
 
