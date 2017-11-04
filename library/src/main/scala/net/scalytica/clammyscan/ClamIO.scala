@@ -11,7 +11,7 @@ import net.scalytica.clammyscan.UnsignedInt._
 import play.api.Logger
 
 import scala.collection.immutable
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -142,7 +142,9 @@ class ClamIO(
           ScanError(result)
         } else if (res.startsWith(MaxSizeExceededResponse)) {
           logger.debug(s"StreamMaxLength limit exceeded")
-          ScanError(s"Can't scan $fname because: $MaxSizeExceededResponse")
+          throw ClammyException(
+            ScanError(s"Can't scan $fname because: $MaxSizeExceededResponse")
+          )
         } else {
           logger.warn(s"Virus detected in $fname - $res")
           VirusFound(res)

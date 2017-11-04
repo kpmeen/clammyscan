@@ -66,17 +66,12 @@ class ClamIOSpec
 
     "receives a large file as a stream" should {
       "result in a scan error" in {
-        val res = Await.result(
-          largeFile.source runWith clamIO.scan(largeFile.fname),
-          10 seconds
-        )
-        res match {
-          case err: ScanError =>
-            err.message should include(ClamProtocol.MaxSizeExceededResponse)
-
-          case bad =>
-            fail(s"Expected ScanError but got ${bad.getClass}")
-        }
+        intercept[ClammyException] {
+          Await.result(
+            largeFile.source runWith clamIO.scan(largeFile.fname),
+            10 seconds
+          )
+        }.scanError.message should include(ClamProtocol.MaxSizeExceededResponse)
       }
     }
 
