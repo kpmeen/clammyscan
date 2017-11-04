@@ -32,6 +32,7 @@ function start {
     echo "Starting ClamAV docker container..."
     docker start $CONTAINER_NAME
   else
+    docker pull kpmeen/docker-clamav
     # Starting clam with a StreamMaxLength to 2M to easily trigger file size limit
     docker run --name $CONTAINER_NAME -d -p 3310:3310 kpmeen/docker-clamav -m 2M
   fi

@@ -7,11 +7,18 @@ variables:
   DOCKER_DRIVER: overlay
   # Setting specific folder for sbt-coursier to cache artifacts
   COURSIER_CACHE: "/root/cache/coursier"
+  CLAM_HOST: clammy
+  CLAM_PORT: 3310
 
 cache:
   untracked: true
   paths:
     - cache
+
+services:
+  - name: kpmeen/docker-clamav -m 2M
+    alias: clammy
+    command: ["-m", "2M"]
 
 stages:
   - stylecheck
@@ -28,8 +35,6 @@ run test suites for 2.12:
   stage: test
   coverage: '/\[info]\sAll\sdone\.\sCoverage\swas\s\[(.*)%\]/'
   script:
-    # Start clamav
-    - /bootstrap.sh
     # Build the project
     - sbt clean coverage test coverageReport
     - sbt coverageAggregate codacyCoverage
@@ -37,8 +42,6 @@ run test suites for 2.12:
 run test suites for 2.11:
   stage: test
   script:
-    # Start clamav
-    - /bootstrap.sh
     # Build the project
     - sbt "++ 2.11.11" test
 
