@@ -65,11 +65,7 @@ class ClamIO(
   private[this] var commandInitiated: Boolean = false
 
   private[this] def maxChunkNum(chunkSize: Int = maxChunkSize): Int = {
-    val tc = maxBytes.toDouble / chunkSize.toDouble
-    tc % 1 match {
-      case dec: Double if dec > 0 => tc.toInt + 1
-      case _                      => tc.toInt
-    }
+    (maxBytes / chunkSize).toInt
   }
 
   /**
