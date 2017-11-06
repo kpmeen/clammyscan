@@ -12,21 +12,13 @@
     </encoder>
   </appender>
 
-  <appender name="ASYNC_STDOUT" class="ch.qos.logback.classic.AsyncAppender">
-    <appender-ref ref="STDOUT"/>
-  </appender>
-
   <logger name="net.scalytica.clammyscan" level="OFF" additivity="false">
-    <appender-ref ref="ASYNC_STDOUT"/>
+    <appender-ref ref="STDOUT"/>
   </logger>
-
-  <!--<logger name="akka" level="DEBUG">-->
-  <!--<appender-ref ref="ASYNC_STDOUT"/>-->
-  <!--</logger>-->
 
   <!-- Root loggers catch all other events that are not explicitly handled-->
   <root level="OFF">
-    <appender-ref ref="ASYNC_STDOUT"/>
+    <appender-ref ref="STDOUT"/>
   </root>
 
 </configuration>

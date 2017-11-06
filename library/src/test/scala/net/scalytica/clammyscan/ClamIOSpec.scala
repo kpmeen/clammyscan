@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import com.typesafe.config.ConfigFactory
+import net.scalytica.clammyscan.ClamProtocol.MaxSizeExceededResponse
 import org.scalatest._
 
 import scala.concurrent.Await
@@ -17,8 +18,8 @@ class ClamIOSpec
     with BeforeAndAfterAll
     with TestResources {
 
-  implicit val sys = system
-  implicit val mat = ActorMaterializer()
+  implicit val sys: ActorSystem       = system
+  implicit val mat: ActorMaterializer = ActorMaterializer()
 
   override def afterAll(): Unit = {
     mat.shutdown()
@@ -66,12 +67,17 @@ class ClamIOSpec
 
     "receives a large file as a stream" should {
       "result in a scan error" in {
-        intercept[ClammyException] {
+        val res =
           Await.result(
             largeFile.source runWith clamIO.scan(largeFile.fname),
             10 seconds
           )
-        }.scanError.message should include(ClamProtocol.MaxSizeExceededResponse)
+
+        res match {
+          case ScanError(msg) => msg should include(MaxSizeExceededResponse)
+
+          case bad => fail(s"Expected ScanError, found ${bad.getClass}")
+        }
       }
     }
 

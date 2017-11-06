@@ -6,6 +6,7 @@ import akka.actor.ActorSystem
 import akka.stream._
 import akka.stream.scaladsl.{Tcp, _}
 import akka.util.ByteString
+import net.scalytica.clammyscan.ClamIO.maxChunkSize
 import net.scalytica.clammyscan.ClamProtocol._
 import net.scalytica.clammyscan.UnsignedInt._
 import play.api.Logger
@@ -63,20 +64,47 @@ class ClamIO(
    */
   private[this] var commandInitiated: Boolean = false
 
+  private[this] def maxChunkNum(chunkSize: Int = maxChunkSize): Int = {
+    val tc = maxBytes.toDouble / chunkSize.toDouble
+    tc % 1 match {
+      case dec: Double if dec > 0 => tc.toInt + 1
+      case _                      => tc.toInt
+    }
+  }
+
   /**
-   * Flow that builds chunks of expected size from the incoming elements
+   * Flow that builds chunks of expected size from the incoming elements. Also
+   * it will stop consuming chunks once the {{{maxBytes}}} limit is reached to
+   * ensure that upstream doesn't push new chunks to an already closed socket.
+   * Not doing so is very likely to trigger a race condition where a
+   * [[StreamTcpException]] is thrown before the [[MaxSizeExceededResponse]]
+   * message is received from clamd.
+   * Since downstream will cancel after the first chunk exceeding the max size
+   * is received, this implementation is good enough, and will not process
+   * chunks needlessly.
    */
-  private[this] def chunker = Flow[ByteString].mapConcat { bs =>
-    val b = immutable.Seq.newBuilder[ByteString]
+  private[this] def chunker = Flow[ByteString].statefulMapConcat { () =>
+    // Mutable chunk counter
+    var chunkCount: Int = 0
+    var maxChunks: Int  = maxChunkNum()
+    bs =>
+      logger.debug(s"Incoming chunk size is: ${bs.size}")
+      val b = immutable.Seq.newBuilder[ByteString]
 
-    logger.debug(s"Incoming chunk size is: ${bs.size}")
+      val chunks = {
+        if (bs.size > maxChunkSize) {
+          b ++= bs.grouped(maxChunkSize)
+        } else {
+          maxChunks = maxChunkNum(bs.size)
+          b += bs
+        }
+      }.result()
 
-    val chunks = {
-      if (bs.size > ClamIO.maxChunkSize) b ++= bs.grouped(ClamIO.maxChunkSize)
-      else b += bs
-    }.result()
+      val outChunks = chunks.take(maxChunks - chunkCount)
 
-    chunks
+      chunkCount = chunkCount + outChunks.size
+
+      outChunks
   }
 
   /**
@@ -88,8 +116,8 @@ class ClamIO(
    * a sequence of 4 bytes with the length of the following chunk as an
    * unsigned integer.
    */
-  private[this] def stream = {
-    chunker.mapConcat { bs =>
+  private[this] def stream =
+    Flow[ByteString].mapConcat { bs =>
       val builder = immutable.Seq.newBuilder[ByteString]
       // If this is the first ByteString we need to prefix with the Instream
       // command to tell clamd that we're going to start a new scan.
@@ -111,7 +139,6 @@ class ClamIO(
       // Append the stream completed bytes to tell clamd the end is reached.
       Source.single(StreamCompleted)
     }
-  }
 
   /**
    * Sink implementation that yields a ScanResponse when it's completed.
@@ -142,9 +169,7 @@ class ClamIO(
           ScanError(result)
         } else if (res.startsWith(MaxSizeExceededResponse)) {
           logger.debug(s"StreamMaxLength limit exceeded")
-          throw ClammyException(
-            ScanError(s"Can't scan $fname because: $MaxSizeExceededResponse")
-          )
+          ScanError(s"Can't scan $fname because: $MaxSizeExceededResponse")
         } else {
           logger.warn(s"Virus detected in $fname - $res")
           VirusFound(res)
@@ -175,7 +200,7 @@ class ClamIO(
       filename: String
   )(implicit e: ExecutionContext, s: ActorSystem): ClamSink = {
     logger.debug(s"Preparing to scan file $filename with clamd...")
-    (stream via connection).toMat(sink(filename))(Keep.right)
+    (chunker via stream via connection).toMat(sink(filename))(Keep.right)
   }
 
   /**
