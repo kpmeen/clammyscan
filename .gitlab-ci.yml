@@ -7,18 +7,11 @@ variables:
   DOCKER_DRIVER: overlay
   # Setting specific folder for sbt-coursier to cache artifacts
   COURSIER_CACHE: "/root/cache/coursier"
-  CLAM_HOST: clammy
-  CLAM_PORT: 3310
 
 cache:
   untracked: true
   paths:
     - cache
-
-services:
-  - name: kpmeen/docker-clamav
-    alias: clammy
-    command: ["-m", "2M"]
 
 stages:
   - stylecheck
@@ -31,16 +24,27 @@ check style and formatting:
     - sbt clean scalastyle scalafmt
     - git diff --exit-code || (echo "ERROR Code formatting check failed, see differences above."; false)
 
-run test suites for 2.12:
+# Shared settings for the test stage jobs
+.test_template: &test_settings
   stage: test
+  variables:
+    CLAM_HOST: clammy
+    CLAM_PORT: 3310
+  services:
+    - name: registry.gitlab.com/kpmeen/docker-clamav
+      alias: clammy
+      command: ["-m", "2M"]
   coverage: '/\[info]\sAll\sdone\.\sCoverage\swas\s\[(.*)%\]/'
+
+run test suites for 2.12:
+  <<: *test_settings
   script:
     # Build the project
     - sbt clean coverage test coverageReport
     - sbt coverageAggregate codacyCoverage
 
 run test suites for 2.11:
-  stage: test
+  <<: *test_settings
   script:
     # Build the project
     - sbt "++ 2.11.11" test
