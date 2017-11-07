@@ -31,7 +31,7 @@ class ClamIO(
     host: String,
     port: Int,
     timeout: Duration,
-    maxBytes: Long
+    maxBytes: Int
 ) {
 
   private[this] val logger = Logger(this.getClass)
@@ -64,9 +64,9 @@ class ClamIO(
    */
   private[this] var commandInitiated: Boolean = false
 
-  private[this] def maxChunkNum(chunkSize: Int = maxChunkSize): Int = {
-    (maxBytes / chunkSize).toInt
-  }
+//  private[this] def maxChunkNum(chunkSize: Int = maxChunkSize): Int = {
+//    (maxBytes / chunkSize).toInt
+//  }
 
   /**
    * Flow that builds chunks of expected size from the incoming elements. Also
@@ -79,29 +79,8 @@ class ClamIO(
    * is received, this implementation is good enough, and will not process
    * chunks needlessly.
    */
-  private[this] def chunker = Flow[ByteString].statefulMapConcat { () =>
-    // Mutable chunk counter
-    var chunkCount: Int = 0
-    var maxChunks: Int  = maxChunkNum()
-    bs =>
-      logger.debug(s"Incoming chunk size is: ${bs.size}")
-      val b = immutable.Seq.newBuilder[ByteString]
-
-      val chunks = {
-        if (bs.size > maxChunkSize) {
-          b ++= bs.grouped(maxChunkSize)
-        } else {
-          maxChunks = maxChunkNum(bs.size)
-          b += bs
-        }
-      }.result()
-
-      val outChunks = chunks.take(maxChunks - chunkCount)
-
-      chunkCount = chunkCount + outChunks.size
-
-      outChunks
-  }
+  private[this] def chunker =
+    Flow.fromGraph(new ChunkAggregationStage(maxChunkSize, maxBytes))
 
   /**
    * The ClamAV protocol is very specific. This Flow aims to handle that.
@@ -229,7 +208,7 @@ object ClamIO {
       host: String,
       port: Int,
       timeout: Duration,
-      maxBytes: Long
+      maxBytes: Int
   ): ClamIO =
     new ClamIO(host, port, timeout, maxBytes)
 

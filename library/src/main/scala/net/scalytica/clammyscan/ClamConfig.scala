@@ -20,7 +20,7 @@ class ClamConfig(config: Configuration) extends ConfigKeys {
 
   private val DefaultPortNumber      = 3310
   private val DefaultTimeout         = 5 seconds
-  private val DefaultMaxStreamLength = 2097152L
+  private val DefaultMaxStreamLength = 2097152
 
   /**
    * IP address of clamd daemon. Defaults to localhost
@@ -43,9 +43,9 @@ class ClamConfig(config: Configuration) extends ConfigKeys {
       .map(ms => if (ms._1 == 0) Duration.Inf else ms)
       .getOrElse(DefaultTimeout)
 
-  lazy val streamMaxLength: Long =
+  lazy val streamMaxLength: Int =
     if (config.has(streamMaxLengthKey))
-      config.underlying.getBytes(streamMaxLengthKey)
+      config.underlying.getBytes(streamMaxLengthKey).toInt
     else DefaultMaxStreamLength
 
   /**
