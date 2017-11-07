@@ -1,7 +1,7 @@
 ######################################################################
 # GitLab CI build script for the ClammyScan project                   #
 ######################################################################
-image: kpmeen/docker-scala-sbt
+image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.12
 
 variables:
   DOCKER_DRIVER: overlay

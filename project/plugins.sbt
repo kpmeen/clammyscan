@@ -9,7 +9,7 @@ resolvers ++= Seq(
 addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.6")
 
 // Dependency resolution
-addSbtPlugin("io.get-coursier"  %% "sbt-coursier" % "1.0.0-RC12")
+addSbtPlugin("io.get-coursier"  %% "sbt-coursier" % "1.0.0-RC13")
 addSbtPlugin("com.timushev.sbt" % "sbt-updates"   % "0.3.3")
 
 // Formatting and style checking
