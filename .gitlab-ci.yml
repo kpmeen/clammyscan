@@ -34,7 +34,7 @@ check style and formatting:
   services:
     - name: registry.gitlab.com/kpmeen/docker-clamav
       alias: clammy
-      command: ["/bootstrap.sh", "-m", "2M"]
+      command: ["-m", "2M"]
 
 run test suites for 2.12:
   <<: *test_settings
