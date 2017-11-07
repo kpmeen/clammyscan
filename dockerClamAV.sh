@@ -3,6 +3,7 @@
 ARG=$1
 
 CONTAINER_NAME="clammy"
+CLAM_IMAGE="registry.gitlab.com/kpmeen/docker-clamav"
 
 function clean {
   echo "Removing ClamAV container..."
@@ -32,9 +33,9 @@ function start {
     echo "Starting ClamAV docker container..."
     docker start $CONTAINER_NAME
   else
-    docker pull kpmeen/docker-clamav
+    docker pull $CLAM_IMAGE
     # Starting clam with a StreamMaxLength to 2M to easily trigger file size limit
-    docker run --name $CONTAINER_NAME -d -p 3310:3310 kpmeen/docker-clamav -m 2M
+    docker run --name $CONTAINER_NAME -d -p 3310:3310 $CLAM_IMAGE -m 2M
   fi
 
   echo "To tail the log of ClamAV run the following command:"
