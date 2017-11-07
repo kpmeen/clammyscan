@@ -55,7 +55,7 @@ class ChunkAggregationStage(
               if (rechunked.length < chunkSize) {
                 pull(in)
               } else {
-                val (res, next) = rechunked.result().splitAt(maxBytes)
+                val (res, next) = splitChunk()
                 rechunked.clear()
                 rechunked ++= next
                 chunks = chunks + 1
@@ -67,9 +67,14 @@ class ChunkAggregationStage(
           override def onPull(): Unit = pull(in)
 
           override def onUpstreamFinish(): Unit = {
-            val result = rechunked.result()
-            if (result.nonEmpty) emit(out, result)
+            val (c1, c2) = splitChunk()
+            val result   = Seq(c1, c2).filter(_.nonEmpty).iterator
+            if (result.nonEmpty) emitMultiple(out, result)
             completeStage()
+          }
+
+          def splitChunk(): (ByteString, ByteString) = {
+            rechunked.result().splitAt(maxBytes)
           }
 
         }
