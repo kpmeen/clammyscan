@@ -13,8 +13,8 @@ import net.scalytica.clammyscan.UnsignedInt._
 import play.api.Logger
 
 import scala.collection.immutable
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Class that provides a way of communicating with `clamd` using akka-streams.
@@ -56,7 +56,6 @@ class ClamIO(
       )
       .recover {
         case err: StreamTcpException =>
-          err.printStackTrace()
           logger.debug("An error occurred trying to connect to Clam", err)
           throw ClammyException(couldNotConnect)
       }
@@ -78,7 +77,7 @@ class ClamIO(
    * is received, this implementation is good enough, and will not process
    * chunks needlessly.
    */
-  private[this] val chunker =
+  private[this] def chunker =
     Flow.fromGraph(new ChunkAggregationStage(maxChunkSize, maxBytes))
 
   /**
@@ -117,44 +116,10 @@ class ClamIO(
   /**
    * Sink implementation that yields a ScanResponse when it's completed.
    *
-   * @param fname String with the name of the file being scanned
-   * @param ec    an implicit ExecutionContext
    * @return a `ClamSink`
    */
-  private[this] def sink(
-      fname: String
-  )(implicit ec: ExecutionContext): ClamSink = {
-
-    case class ScanState(chunkNum: Int = 0, result: String = "") {
-      def append(chunk: ByteString): ScanState = {
-        copy(
-          chunkNum = chunkNum + 1,
-          result = s"$result${chunk.utf8String}"
-        )
-      }
-
-      def validate: ScanResponse = {
-        val res = result.trim
-        if (OkResponse.equals(res)) {
-          logger.debug(s"No viruses found in $fname")
-          FileOk
-        } else if (UnknownCommand.equals(res)) {
-          logger.debug(s"Command not recognized: $res")
-          ScanError(result)
-        } else if (res.startsWith(MaxSizeExceededResponse)) {
-          logger.debug(s"StreamMaxLength limit exceeded")
-          ScanError(s"Can't scan $fname because: $MaxSizeExceededResponse")
-        } else {
-          logger.warn(s"Virus detected in $fname - $res")
-          VirusFound(res)
-        }
-      }
-    }
-
-    Sink
-      .fold[ScanState, ByteString](ScanState())((s, c) => s.append(c))
-      .mapMaterializedValue(ss => ss.map(_.validate))
-  }
+  private[this] def sink: ClamSink =
+    Flow.fromGraph(new ClamResponseStage).toMat(Sink.head)(Keep.right)
 
   // Helper for executing general commands against clamd
   private[this] def execClamCommand(command: Command)(
@@ -172,9 +137,9 @@ class ClamIO(
    */
   def scan(
       filename: String
-  )(implicit e: ExecutionContext, s: ActorSystem): ClamSink = {
+  )(implicit s: ActorSystem): ClamSink = {
     logger.debug(s"Preparing to scan file $filename with clamd...")
-    (chunker via stream via connection).toMat(sink(filename))(Keep.right)
+    (chunker via stream via connection).toMat(sink)(Keep.right)
   }
 
   /**

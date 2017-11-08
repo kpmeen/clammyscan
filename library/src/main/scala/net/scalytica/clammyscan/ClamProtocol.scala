@@ -11,6 +11,8 @@ object ClamProtocol {
   val UnknownCommand          = "UNKNOWN COMMAND"
   val OkResponse              = "stream: OK"
   val MaxSizeExceededResponse = "INSTREAM size limit exceeded"
+  val InfectedResponse        = "^.* FOUND".r
+  val IncompleteResponse      = "Incomplete response from clamd"
 
   // The unicode null character...must be appended to some clam commands
   val UnicodeNull = "\u0000"

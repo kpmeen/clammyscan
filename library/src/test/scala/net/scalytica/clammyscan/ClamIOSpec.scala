@@ -8,7 +8,6 @@ import net.scalytica.clammyscan.ClamProtocol.MaxSizeExceededResponse
 import org.scalatest._
 
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class ClamIOSpec

@@ -32,6 +32,6 @@ package object clammyscan {
       s"scan $filename with clamd"
 
   private[clammyscan] val couldNotConnect =
-    ScanError("Could not connect to clamd")
+    ScanError("Connection to clamd caused an exception.")
 }
 // $COVERAGE-ON$

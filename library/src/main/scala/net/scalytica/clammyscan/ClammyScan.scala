@@ -102,7 +102,7 @@ abstract class BaseScanParser(
    */
   protected def clammySink(
       filename: String
-  )(implicit ec: ExecutionContext) = {
+  ) = {
     if (!clamConfig.scanDisabled) {
       ClamIO(clamConfig).scan(filename)
     } else {
@@ -120,7 +120,7 @@ abstract class BaseScanParser(
    */
   protected def sinks[A](filename: String, contentType: Option[String])(
       save: ToSaveSink[A]
-  )(implicit ec: ExecutionContext): (ClamSink, SaveSink[A]) =
+  ): (ClamSink, SaveSink[A]) =
     if (fileNameValid(filename)) {
       (clammySink(filename), save(filename, contentType))
     } else {
