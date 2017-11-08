@@ -54,7 +54,7 @@ class ChunkAggregationStage(
               if (rechunked.isEmpty && chunk.size <= chunkSize) pull(in)
               else if (rechunked.length < chunkSize) pull(in)
               else {
-                val (res, next) = rechunked.result().splitAt(maxBytes)
+                val (res, next) = rechunked.result().splitAt(chunkSize)
                 rechunked.clear()
                 rechunked ++= next
                 chunks = chunks + 1
@@ -72,7 +72,7 @@ class ChunkAggregationStage(
 
           override def onUpstreamFinish(): Unit = {
             if (rechunked.nonEmpty) {
-              val (c1, c2) = rechunked.result().splitAt(maxBytes)
+              val (c1, c2) = rechunked.result().splitAt(chunkSize)
               val ite      = Seq(c1, c2).filter(_.nonEmpty)
               if (ite.size > 1) emitMultiple(out, ite.iterator)
               else emit(out, ite.head)

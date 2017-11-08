@@ -200,7 +200,7 @@ class ClamIO(
 
 object ClamIO {
 
-  val maxChunkSize: Int = 8192 // 262144
+  val maxChunkSize: Int = 262144
 
   def apply(
       host: String,
