@@ -3,6 +3,7 @@ package net.scalytica.clammyscan
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
+import akka.io.Inet.SO.SendBufferSize
 import akka.stream._
 import akka.stream.scaladsl.{Tcp, _}
 import akka.util.ByteString
@@ -50,7 +51,8 @@ class ClamIO(
     Tcp()
       .outgoingConnection(
         remoteAddress = inetAddr,
-        connectTimeout = timeout
+        connectTimeout = timeout,
+        options = Vector(SendBufferSize(maxChunkSize))
       )
       .recover {
         case err: StreamTcpException =>
@@ -64,10 +66,6 @@ class ClamIO(
    */
   private[this] var commandInitiated: Boolean = false
 
-//  private[this] def maxChunkNum(chunkSize: Int = maxChunkSize): Int = {
-//    (maxBytes / chunkSize).toInt
-//  }
-
   /**
    * Flow that builds chunks of expected size from the incoming elements. Also
    * it will stop consuming chunks once the {{{maxBytes}}} limit is reached to
@@ -79,7 +77,7 @@ class ClamIO(
    * is received, this implementation is good enough, and will not process
    * chunks needlessly.
    */
-  private[this] def chunker =
+  private[this] val chunker =
     Flow.fromGraph(new ChunkAggregationStage(maxChunkSize, maxBytes))
 
   /**
@@ -202,7 +200,7 @@ class ClamIO(
 
 object ClamIO {
 
-  val maxChunkSize: Int = 262144
+  val maxChunkSize: Int = 8192 // 262144
 
   def apply(
       host: String,

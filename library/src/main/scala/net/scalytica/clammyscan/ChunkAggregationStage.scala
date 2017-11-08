@@ -43,19 +43,18 @@ class ChunkAggregationStage(
         out = out,
         handler = new InHandler with OutHandler {
 
-          override def onPush(): Unit = {
-            if (receivedBytes > maxBytes) {
-              onUpstreamFinish()
+          private[this] def processChunk(chunk: ByteString): Unit = {
+            receivedBytes = receivedBytes + chunk.size
+            rechunked ++= chunk
+
+            if (rechunked.isEmpty && chunkSize == chunk.size) { // pass through
+              chunks = chunks + 1
+              push(out, chunk)
             } else {
-              val chunk = grab(in)
-
-              receivedBytes = receivedBytes + chunk.size
-              rechunked ++= chunk
-
-              if (rechunked.length < chunkSize) {
-                pull(in)
-              } else {
-                val (res, next) = splitChunk()
+              if (rechunked.isEmpty && chunk.size <= chunkSize) pull(in)
+              else if (rechunked.length < chunkSize) pull(in)
+              else {
+                val (res, next) = rechunked.result().splitAt(maxBytes)
                 rechunked.clear()
                 rechunked ++= next
                 chunks = chunks + 1
@@ -64,17 +63,22 @@ class ChunkAggregationStage(
             }
           }
 
+          override def onPush(): Unit = {
+            if (receivedBytes > maxBytes) onUpstreamFinish()
+            else processChunk(grab(in))
+          }
+
           override def onPull(): Unit = pull(in)
 
           override def onUpstreamFinish(): Unit = {
-            val (c1, c2) = splitChunk()
-            val result   = Seq(c1, c2).filter(_.nonEmpty).iterator
-            if (result.nonEmpty) emitMultiple(out, result)
-            completeStage()
-          }
+            if (rechunked.nonEmpty) {
+              val (c1, c2) = rechunked.result().splitAt(maxBytes)
+              val ite      = Seq(c1, c2).filter(_.nonEmpty)
+              if (ite.size > 1) emitMultiple(out, ite.iterator)
+              else emit(out, ite.head)
+            }
 
-          def splitChunk(): (ByteString, ByteString) = {
-            rechunked.result().splitAt(maxBytes)
+            completeStage()
           }
 
         }
