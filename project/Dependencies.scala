@@ -15,9 +15,10 @@ object Dependencies {
   val scalafmtVersion  = "1.3.0"
 
   val PlayDeps = Seq(
-    "com.typesafe.play" %% "play"       % playVersion % Provided,
-    "com.typesafe.play" %% "play-guice" % playVersion % Provided,
-    "com.typesafe.play" %% "play-test"  % playVersion % Test
+    "com.typesafe.play" %% "play"         % playVersion % Provided,
+    "com.typesafe.play" %% "play-guice"   % playVersion % Provided,
+    "com.typesafe.play" %% "play-logback" % playVersion % Provided,
+    "com.typesafe.play" %% "play-test"    % playVersion % Test
   )
 
   val AkkaDeps = Seq(

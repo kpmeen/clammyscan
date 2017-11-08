@@ -1,7 +1,7 @@
 ######################################################################
 # GitLab CI build script for the ClammyScan project                   #
 ######################################################################
-image: kpmeen/docker-clammyscan-builder
+image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.12
 
 variables:
   DOCKER_DRIVER: overlay
@@ -24,21 +24,28 @@ check style and formatting:
     - sbt clean scalastyle scalafmt
     - git diff --exit-code || (echo "ERROR Code formatting check failed, see differences above."; false)
 
-run test suites for 2.12:
+# Shared settings for the test stage jobs
+.test_template: &test_settings
   stage: test
+  variables:
+    CLAM_HOST: clammy
+    CLAM_PORT: 3310
   coverage: '/\[info]\sAll\sdone\.\sCoverage\swas\s\[(.*)%\]/'
+  services:
+    - name: registry.gitlab.com/kpmeen/docker-clamav
+      alias: clammy
+      command: ["-m", "2M"]
+
+run test suites for 2.12:
+  <<: *test_settings
   script:
-    # Start clamav
-    - /bootstrap.sh
     # Build the project
     - sbt clean coverage test coverageReport
     - sbt coverageAggregate codacyCoverage
 
 run test suites for 2.11:
-  stage: test
+  <<: *test_settings
   script:
-    # Start clamav
-    - /bootstrap.sh
     # Build the project
     - sbt "++ 2.11.11" test
 

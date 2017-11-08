@@ -5,9 +5,12 @@ import sbt._
 object Settings {
 
   val ScalacOpts = Seq(
+    "-encoding",
+    "utf-8",
     "-deprecation",
     "-feature",
     "-unchecked",
+    "-explaintypes",
     "-Xfatal-warnings",
     "-Xlint",
     "-Ywarn-adapted-args",
@@ -33,9 +36,7 @@ object Settings {
     scalacOptions in Test ++= Seq("-Yrangepos"),
     logBuffered in Test := false,
     fork in Test := true,
-    javaOptions in Test += "-Dlogger.resource=logback-test.xml",
-    testOptions += Tests
-      .Argument(TestFrameworks.Specs2, "html", "junitxml", "console")
+    javaOptions in Test += "-Dlogger.resource=logback-test.xml"
   )
 
   val NoPublish = Seq(

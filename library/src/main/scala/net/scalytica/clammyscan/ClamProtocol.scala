@@ -8,12 +8,14 @@ object ClamProtocol {
   // Some String based constants with values of different response messages
   // that can be expected from clamd.
   // ----------
-  val unknownCommand          = "UNKNOWN COMMAND"
-  val okResponse              = "stream: OK"
-  val maxSizeExceededResponse = "INSTREAM size limit exceeded. ERROR"
+  val UnknownCommand          = "UNKNOWN COMMAND"
+  val OkResponse              = "stream: OK"
+  val MaxSizeExceededResponse = "INSTREAM size limit exceeded"
+  val InfectedResponse        = "^.* FOUND".r
+  val IncompleteResponse      = "Incomplete response from clamd"
 
   // The unicode null character...must be appended to some clam commands
-  val unicodeNull = "\u0000"
+  val UnicodeNull = "\u0000"
 
   /**
    * Definition commands that can be used against clamd.
@@ -42,21 +44,21 @@ object ClamProtocol {
    * Command for initializing stream based AV scanning
    */
   case object Instream extends Command {
-    val cmd = ByteString.fromString(s"zINSTREAM$unicodeNull")
+    val cmd = ByteString.fromString(s"zINSTREAM$UnicodeNull")
   }
 
   /**
    * Command for sending clamd a ping
    */
   case object Ping extends Command {
-    val cmd = ByteString.fromString(s"zPING$unicodeNull")
+    val cmd = ByteString.fromString(s"zPING$UnicodeNull")
   }
 
   /**
    * Command for retrieving a statistics message from clamd
    */
   case object Stats extends Command {
-    val cmd = ByteString.fromString(s"zSTATS$unicodeNull")
+    val cmd = ByteString.fromString(s"zSTATS$UnicodeNull")
   }
 
   /**
