@@ -56,6 +56,7 @@ class ClamIO(
       )
       .recover {
         case err: StreamTcpException =>
+          err.printStackTrace()
           logger.debug("An error occurred trying to connect to Clam", err)
           throw ClammyException(couldNotConnect)
       }
