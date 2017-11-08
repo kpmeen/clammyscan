@@ -1,6 +1,6 @@
 package net.scalytica.clammyscan
 
-import net.scalytica.test.{TestAppContext, TestRouterUris}
+import net.scalytica.test.{TestAppContext, TestResources, TestRouterUris}
 import play.api.test.Helpers._
 
 class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
@@ -16,7 +16,7 @@ class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
           ).futureValue
 
         result.status mustBe NOT_ACCEPTABLE
-        result.body must include(eicarResult.value)
+        result.body must include(virusFoundIdentifier)
       }
 
       "scan clean file and not persist the file" in {
@@ -62,7 +62,7 @@ class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
           ).futureValue
 
         result.status mustBe NOT_ACCEPTABLE
-        result.body must include(eicarResult.value)
+        result.body must include(virusFoundIdentifier)
       }
 
       "scan clean file and not persist the file" in {
@@ -107,7 +107,7 @@ class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
           ).futureValue
 
         result.status mustBe NOT_ACCEPTABLE
-        result.body must include(eicarResult.value)
+        result.body must include(virusFoundIdentifier)
       }
 
       "scan clean file and not remove the temp file" in {
@@ -156,7 +156,7 @@ class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
           ).futureValue
 
         result.status mustBe NOT_ACCEPTABLE
-        result.body must include(eicarResult.value)
+        result.body must include(virusFoundIdentifier)
       }
 
       "scan clean file and not remove the temp file" in {

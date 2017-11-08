@@ -5,6 +5,7 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import com.typesafe.config.ConfigFactory
 import net.scalytica.clammyscan.ClamProtocol.MaxSizeExceededResponse
+import net.scalytica.test.TestResources
 import org.scalatest._
 
 import scala.concurrent.Await

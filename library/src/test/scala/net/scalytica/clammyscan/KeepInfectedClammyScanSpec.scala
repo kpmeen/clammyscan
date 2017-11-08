@@ -1,6 +1,6 @@
 package net.scalytica.clammyscan
 
-import net.scalytica.test.{TestAppContext, TestRouterUris}
+import net.scalytica.test.{TestAppContext, TestResources, TestRouterUris}
 import play.api.test.Helpers.NOT_ACCEPTABLE
 
 class KeepInfectedClammyScanSpec extends TestAppContext with TestResources {
@@ -23,7 +23,7 @@ class KeepInfectedClammyScanSpec extends TestAppContext with TestResources {
           ).futureValue
 
         result.status mustBe NOT_ACCEPTABLE
-        result.body must include(eicarResult.value)
+        result.body must include(virusFoundIdentifier)
       }
 
       "not remove the infected file from a direct upload" in {
@@ -34,7 +34,7 @@ class KeepInfectedClammyScanSpec extends TestAppContext with TestResources {
           ).futureValue
 
         result.status mustBe NOT_ACCEPTABLE
-        result.body must include(eicarResult.value)
+        result.body must include(virusFoundIdentifier)
       }
     }
   }

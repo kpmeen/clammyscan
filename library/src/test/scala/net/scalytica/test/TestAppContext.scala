@@ -5,7 +5,6 @@ import akka.stream.scaladsl.Source
 import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
-import net.scalytica.clammyscan.FileSource
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Span}
 import org.scalatestplus.play.PlaySpec

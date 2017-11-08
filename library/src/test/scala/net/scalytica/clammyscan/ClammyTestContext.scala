@@ -4,7 +4,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.FileIO
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
-import net.scalytica.test.TestActions
+import net.scalytica.test.{FileSource, TestActions}
 import org.scalatest._
 import play.api.Configuration
 import play.api.http.Writeable

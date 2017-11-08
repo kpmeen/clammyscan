@@ -1,10 +1,11 @@
-package net.scalytica.clammyscan
+package net.scalytica.test
 
 import java.nio.file.Paths
 
 import akka.stream.IOResult
 import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
+import net.scalytica.clammyscan.ClamError
 import org.scalatest.Matchers.fail
 
 import scala.concurrent.Future
@@ -16,8 +17,13 @@ case class FileSource(
 
 trait TestResources { self =>
 
-  val eicarResult =
+  val virusFoundIdentifier = "FOUND"
+
+  val eicarResult1 =
     Some("""{"message":"stream: Eicar-Test-Signature FOUND"}""")
+
+  val eicarResult2 =
+    Some("""{"message":"stream: Win.Test.EICAR_NDB-1 FOUND"}""")
 
   val clamdUnavailableResult =
     Some("""{"message":"Connection to clamd caused an exception."}""")

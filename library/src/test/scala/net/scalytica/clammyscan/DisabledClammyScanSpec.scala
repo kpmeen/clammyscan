@@ -1,6 +1,6 @@
 package net.scalytica.clammyscan
 
-import net.scalytica.test.{TestAppContext, TestRouterUris}
+import net.scalytica.test.{TestAppContext, TestResources, TestRouterUris}
 import play.api.test.Helpers.OK
 
 class DisabledClammyScanSpec extends TestAppContext with TestResources {
