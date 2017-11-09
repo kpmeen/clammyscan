@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory
 import net.scalytica.clammyscan.ClamProtocol.MaxSizeExceededResponse
 import net.scalytica.test.TestResources
 import org.scalatest._
+import org.scalatest.tagobjects.Retryable
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -16,6 +17,7 @@ class ClamIOSpec
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll
+    with Retries
     with TestResources {
 
   implicit val sys: ActorSystem       = system
@@ -32,6 +34,11 @@ class ClamIOSpec
   }
 
   val clamIO = ClamIO(conf.host, conf.port, conf.timeout, conf.streamMaxLength)
+
+  override def withFixture(test: NoArgTest) = {
+    if (isRetryable(test)) withRetryOnFailure(super.withFixture(test))
+    else super.withFixture(test)
+  }
 
   "A ClamIO" which {
 
@@ -66,7 +73,7 @@ class ClamIOSpec
     }
 
     "receives a large file as a stream" should {
-      "result in a scan error" in {
+      "result in a scan error" taggedAs Retryable in {
         val res =
           Await.result(
             largeFile.source runWith clamIO.scan(largeFile.fname),

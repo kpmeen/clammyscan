@@ -1,9 +1,19 @@
 package net.scalytica.clammyscan
 
 import net.scalytica.test.{TestAppContext, TestResources, TestRouterUris}
+import org.scalatest.Retries
+import org.scalatest.tagobjects.Retryable
 import play.api.test.Helpers._
 
-class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
+class DefaultConfigClammyScanSpec
+    extends TestAppContext
+    with Retries
+    with TestResources {
+
+  override def withFixture(test: NoArgTest) = {
+    if (isRetryable(test)) withRetryOnFailure(super.withFixture(test))
+    else super.withFixture(test)
+  }
 
   "ClammyScan with default configuration" that {
 
@@ -33,7 +43,8 @@ class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
         result.status mustBe OK
       }
 
-      "fail scanning file when size is larger than clam config" in {
+      // scalastyle:off line.size.limit
+      "fail scanning file when size is larger than clam config" taggedAs Retryable in {
         val requestBody = multipart(largeFile, Some("application/zip"))
         val result =
           post(
@@ -47,6 +58,7 @@ class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
         result.status mustBe BAD_REQUEST
         result.body must include(ClamProtocol.MaxSizeExceededResponse)
       }
+      // scalastyle:on line.size.limit
     }
 
     "receives a direct upload file for scanning only" should {
@@ -79,7 +91,8 @@ class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
         result.status mustBe OK
       }
 
-      "fail scanning file when size is larger than clam config" in {
+      // scalastyle:off line.size.limit
+      "fail scanning file when size is larger than clam config" taggedAs Retryable in {
         val requestBody = largeFile.source
         val result =
           post(
@@ -93,6 +106,7 @@ class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
         result.status mustBe BAD_REQUEST
         result.body must include(ClamProtocol.MaxSizeExceededResponse)
       }
+      // scalastyle:off line.size.limit
     }
 
     "receives a multipart file for scanning and saving as temp file" should {
