@@ -10,7 +10,7 @@ import play.api.Logger
  * This GraphStage handles responses from clamd. Also deals properly with the
  * corner case when clamd responds with the "INSTREAM: Size limit reached"
  * message. Clamd will immediately terminate the connection to the client after
- * sending the message. Causing a [[akka.stream.StreamTcpException]] to be
+ * sending the message. Causing a {{{akka.stream.StreamTcpException}}} to be
  * thrown, terminating the stream and prevents processing of the actual response
  * from clamd.
  */
