@@ -78,4 +78,19 @@ class Application @Inject()(
       }
     }
 
+  def directScanFile: Action[ScannedBody[Unit]] =
+    Action(clammyScan.directScanOnly) { request =>
+      request.body.scanResponse match {
+        case vf: VirusFound =>
+          NotAcceptable(Json.obj("message" -> vf.message))
+
+        case ce: ClamError =>
+          logger.error(s"An unknown error occured: ${ce.message}")
+          InternalServerError(Json.obj("message" -> ce.message))
+
+        case FileOk =>
+          Ok(Json.obj("message" -> "file is clean"))
+      }
+    }
+
 }

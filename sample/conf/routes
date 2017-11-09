@@ -4,4 +4,5 @@
 
 POST        /scan       controllers.Application.scanFile
 POST        /scanTemp   controllers.Application.scanTempFile
+POST        /directScan controllers.Application.directScanFile
 POST        /directTemp controllers.Application.directTempFile
