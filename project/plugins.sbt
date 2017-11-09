@@ -2,7 +2,10 @@ logLevel := Level.Warn
 
 resolvers ++= Seq(
   Resolver.bintrayIvyRepo("sbt", "sbt-plugin-releases"),
-  Resolver.typesafeRepo("releases")
+  Resolver.typesafeRepo("releases"),
+  // Remove below resolver once the following issues has been resolved:
+  // https://issues.jboss.org/projects/JBINTER/issues/JBINTER-21
+  "JBoss" at "https://repository.jboss.org/"
 )
 
 // The Play plugin
