@@ -16,6 +16,9 @@ object TestRouterUris {
   val ScanTmpMultiPart = "/scanTmpMultipart"
   val ScanDirect       = "/scanDirect"
   val ScanTmpDirect    = "/scanTmpDirect"
+  val Ping             = "/ping"
+  val Version          = "/version"
+  val Stats            = "/stats"
 
 }
 
@@ -40,6 +43,15 @@ class TestRouter @Inject()(
 
     case POST(p"/scanTmpDirect" ? q_?"filename=$fname" & q_?"contentType=$ctype") =>
       directTmpAction(clammy)
+
+    case GET(p"/ping") =>
+      pingAction(clammy)
+
+    case GET(p"/version") =>
+      versionAction(clammy)
+
+    case GET(p"/stats") =>
+      statsAction(clammy)
 
     case err => ab {
       Results.BadRequest(s"${err.method} ${err.uri} could not be found")

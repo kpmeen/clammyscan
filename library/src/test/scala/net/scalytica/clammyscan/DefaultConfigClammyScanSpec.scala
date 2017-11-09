@@ -190,5 +190,32 @@ class DefaultConfigClammyScanSpec extends TestAppContext with TestResources {
         )
       }
     }
+
+    "executing commands" should {
+
+      "respond to the ping command" in {
+        val res = wsUrl(TestRouterUris.Ping).get().futureValue
+
+        res.status mustBe OK
+        res.contentType mustBe JSON
+        res.body mustBe PingResult
+      }
+
+      "respond to the version command" in {
+        val res = wsUrl(TestRouterUris.Version).get().futureValue
+
+        res.status mustBe OK
+        res.contentType mustBe JSON
+        res.body must include(ExpectedVersionStr)
+      }
+
+      "respond to the stats command" in {
+        val res = wsUrl(TestRouterUris.Stats).get().futureValue
+
+        res.status mustBe OK
+        res.contentType mustBe JSON
+        res.body must include(ExpectedVersionStr)
+      }
+    }
   }
 }

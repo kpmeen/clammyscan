@@ -15,7 +15,8 @@ case class FileSource(
     source: Source[ByteString, Future[IOResult]]
 )
 
-trait TestResources { self =>
+trait TestResources {
+  self =>
 
   val virusFoundIdentifier = "FOUND"
 
@@ -31,6 +32,11 @@ trait TestResources { self =>
   val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-" +
     "ANTIVIRUS-TEST-FILE!$H+H*\u0000"
 
+  val PingResult = s"""{"ping":"PONG"}"""
+
+  val ExpectedVersionStr = "ClamAV 0.99.2"
+
+  // Akka stream Sources
   val eicarStrSource = Source.single[ByteString](ByteString(eicarString))
 
   val cleanFile    = fileAsSource("clean.pdf")

@@ -1,7 +1,7 @@
 package net.scalytica.clammyscan
 
 import net.scalytica.test.{TestAppContext, TestResources, TestRouterUris}
-import play.api.test.Helpers.BAD_REQUEST
+import play.api.test.Helpers._
 
 class UnavailableClammyScanSpec extends TestAppContext with TestResources {
 
@@ -63,6 +63,27 @@ class UnavailableClammyScanSpec extends TestAppContext with TestResources {
 
         result.status mustBe BAD_REQUEST
         result.body must include(clamdUnavailableResult.value)
+      }
+
+      "fail respond to the ping command" in {
+        wsUrl(TestRouterUris.Ping)
+          .get()
+          .futureValue
+          .status mustBe INTERNAL_SERVER_ERROR
+      }
+
+      "fail respond to the version command" in {
+        wsUrl(TestRouterUris.Version)
+          .get()
+          .futureValue
+          .status mustBe INTERNAL_SERVER_ERROR
+      }
+
+      "fail respond to the stats command" in {
+        wsUrl(TestRouterUris.Stats)
+          .get()
+          .futureValue
+          .status mustBe INTERNAL_SERVER_ERROR
       }
     }
   }

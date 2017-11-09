@@ -3,8 +3,9 @@ package net.scalytica.test
 import net.scalytica.clammyscan._
 import play.api.libs.Files.TemporaryFile
 import play.api.libs.json.Json
-import play.api.mvc._
+import play.api.mvc
 import play.api.mvc.Results.{BadRequest, ExpectationFailed, NotAcceptable, Ok}
+import play.api.mvc._
 
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -111,6 +112,32 @@ trait TestActions {
   )(implicit ec: ExecutionContext): EssentialAction = {
     directScanner[TemporaryFile](parser.directScanWithTmpFile) { sb =>
       scanTmpResHandler(parser, sb)
+    }
+  }
+
+  def pingAction(
+      parser: ClammyScanParser
+  )(implicit ec: ExecutionContext): EssentialAction = {
+    new mvc.ActionBuilder.IgnoringBody().async { _ =>
+      parser.ping.map { pr =>
+        Ok(Json.obj("ping" -> pr.trim))
+      }
+    }
+  }
+
+  def versionAction(
+      parser: ClammyScanParser
+  )(implicit ec: ExecutionContext): EssentialAction = {
+    new mvc.ActionBuilder.IgnoringBody().async { _ =>
+      parser.version.map(vr => Ok(Json.obj("version" -> vr.trim)))
+    }
+  }
+
+  def statsAction(
+      parser: ClammyScanParser
+  )(implicit ec: ExecutionContext): EssentialAction = {
+    new mvc.ActionBuilder.IgnoringBody().async { _ =>
+      parser.version.map(sr => Ok(Json.obj("stats" -> sr.trim)))
     }
   }
 
