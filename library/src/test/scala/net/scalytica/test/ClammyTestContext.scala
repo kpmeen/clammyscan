@@ -1,10 +1,10 @@
-package net.scalytica.clammyscan
+package net.scalytica.test
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.FileIO
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
-import net.scalytica.test.{FileSource, TestActions}
+import net.scalytica.clammyscan.ClammyScanParser
 import org.scalatest._
 import play.api.Configuration
 import play.api.http.Writeable
@@ -15,8 +15,8 @@ import play.api.mvc.{PlayBodyParsers, _}
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 /**
@@ -28,11 +28,12 @@ trait ClammyTestContext
     with MustMatchers {
 
   val baseExtraConfig: Map[String, Any] = Map(
-    "play.http.errorHandler"       -> "net.scalytica.test.TestErrorHandler",
-    "akka.jvm-exit-on-fatal-error" -> false,
-    "akka.loglevel"                -> "DEBUG",
-    "akka.loggers"                 -> Seq("akka.event.slf4j.Slf4jLogger"),
-    "logging-filter"               -> "akka.event.slf4j.Slf4jLoggingFilter"
+    "play.http.errorHandler"           -> "net.scalytica.test.TestErrorHandler",
+    "akka.jvm-exit-on-fatal-error"     -> false,
+    "akka.loglevel"                    -> "DEBUG",
+    "akka.loggers"                     -> Seq("akka.event.slf4j.Slf4jLogger"),
+    "logging-filter"                   -> "akka.event.slf4j.Slf4jLoggingFilter",
+    "clammyscan.clamd.streamMaxLength" -> "2M"
   )
 
   case class Context(action: EssentialAction)(

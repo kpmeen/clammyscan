@@ -33,12 +33,13 @@ trait TestAppContext
 
   lazy val configuration: Configuration =
     Configuration(ConfigFactory.load()) ++ Configuration(
-      "play.http.router"             -> "net.scalytica.test.TestRouter",
-      "play.http.errorHandler"       -> "net.scalytica.test.TestErrorHandler",
-      "akka.jvm-exit-on-fatal-error" -> "false",
-      "akka.loglevel"                -> "DEBUG",
-      "akka.loggers"                 -> Seq("akka.event.slf4j.Slf4jLogger"),
-      "akka.logging-filter"          -> "akka.event.slf4j.Slf4jLoggingFilter"
+      "play.http.router"                 -> "net.scalytica.test.TestRouter",
+      "play.http.errorHandler"           -> "net.scalytica.test.TestErrorHandler",
+      "akka.jvm-exit-on-fatal-error"     -> "false",
+      "akka.loglevel"                    -> "DEBUG",
+      "akka.loggers"                     -> Seq("akka.event.slf4j.Slf4jLogger"),
+      "akka.logging-filter"              -> "akka.event.slf4j.Slf4jLoggingFilter",
+      "clammyscan.clamd.streamMaxLength" -> "2M"
     ) ++ Configuration(additionalConfig.toSeq: _*)
 
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(
