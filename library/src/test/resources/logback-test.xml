@@ -16,7 +16,7 @@
   </appender>
 
   <logger name="net.scalytica.clammyscan" level="OFF" additivity="false" />
-  <logger name="net.scalytica.clammyscan.ClamIO" level="DEBUG" additivity="false" />
+  <logger name="net.scalytica.clammyscan.ClammyScan" level="DEBUG" additivity="false" />
 
   <!-- Root loggers catch all other events that are not explicitly handled-->
   <root level="OFF">
