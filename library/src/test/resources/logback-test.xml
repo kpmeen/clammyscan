@@ -4,21 +4,23 @@
                   converterClass="play.api.libs.logback.ColoredLevel"/>
 
   <!-- Will append log message to the standard out -->
-  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-    <encoder>
-      <pattern>
-        %coloredLevel %logger{15} - %message%n%xException{5}
-      </pattern>
-    </encoder>
+
+  <appender name="ASYNC_STDOUT" class="ch.qos.logback.classic.AsyncAppender">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>
+          %coloredLevel %logger{15} - %message%n%xException{5}
+        </pattern>
+      </encoder>
+    </appender>
   </appender>
 
-  <logger name="net.scalytica.clammyscan" level="OFF" additivity="false">
-    <appender-ref ref="STDOUT"/>
-  </logger>
+  <logger name="net.scalytica.clammyscan" level="OFF" additivity="false" />
+  <logger name="net.scalytica.clammyscan.ClamIO" level="DEBUG" additivity="false" />
 
   <!-- Root loggers catch all other events that are not explicitly handled-->
   <root level="OFF">
-    <appender-ref ref="STDOUT"/>
+    <appender-ref ref="ASYNC_STDOUT"/>
   </root>
 
 </configuration>
