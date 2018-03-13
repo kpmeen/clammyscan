@@ -9,10 +9,10 @@ object Dependencies {
   )
 
   val playVersion      = play.core.PlayVersion.current
-  val akkaVersion      = "2.5.6"
-  val stestVersion     = "3.0.4"
+  val playJsonVersion  = "2.6.9"
+  val akkaVersion      = "2.5.11"
+  val stestVersion     = "3.0.5"
   val stestPlusVersion = "3.1.2"
-  val scalafmtVersion  = "1.3.0"
 
   val PlayDeps = Seq(
     "com.typesafe.play" %% "play"         % playVersion % Provided,

@@ -35,7 +35,7 @@ lazy val sample = ClammyProject("sample")
       PlayImport.guice,
       PlayImport.ws,
       PlayImport.ehcache,
-      "com.typesafe.play" %% "play-json" % playVersion
+      "com.typesafe.play" %% "play-json" % playJsonVersion
     )
   )
   .dependsOn(library)
