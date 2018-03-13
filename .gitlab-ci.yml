@@ -47,5 +47,5 @@ run test suites for 2.11:
   <<: *test_settings
   script:
     # Build the project
-    - sbt "++ 2.11.11" test
+    - sbt "++ 2.11.12" test
 
