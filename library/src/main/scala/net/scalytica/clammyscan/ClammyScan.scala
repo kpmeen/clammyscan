@@ -100,9 +100,7 @@ abstract class BaseScanParser(
    *
    * Controlled by the config property `clammyscan.scanDisabled`.
    */
-  protected def clammySink(
-      filename: String
-  ) = {
+  protected def clammySink(filename: String): ClamSink = {
     if (!clamConfig.scanDisabled) {
       ClamIO(clamConfig).scan(filename)
     } else {
@@ -143,7 +141,7 @@ abstract class BaseScanParser(
 
     case ex =>
       cbpLogger.error("An unhandled exception occurred", ex)
-      ScanError(unhandledException)
+      ScanError(UnhandledException)
   }
 
   /**

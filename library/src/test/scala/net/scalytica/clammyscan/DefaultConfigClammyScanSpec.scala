@@ -59,6 +59,22 @@ class DefaultConfigClammyScanSpec
         result.body must include(ClamProtocol.MaxSizeExceededResponse)
       }
       // scalastyle:on line.size.limit
+
+      "fail scanning an empty multipart file" taggedAs Retryable in {
+        val requestBody = multipart(emptyFile, Some("application/text"))
+
+        val result =
+          post(
+            TestRouterUris.ScanTmpMultiPart,
+            Some(emptyFile.fname),
+            Some("application/text")
+          )(
+            requestBody
+          ).futureValue
+
+        result.status mustBe BAD_REQUEST
+        result.body must include(CannotScanEmptyFile.message)
+      }
     }
 
     "receives a direct upload file for scanning only" should {
@@ -107,6 +123,22 @@ class DefaultConfigClammyScanSpec
         result.body must include(ClamProtocol.MaxSizeExceededResponse)
       }
       // scalastyle:off line.size.limit
+
+      "fail scanning an empty direct upload file" taggedAs Retryable in {
+        val requestBody = emptyFile.source
+
+        val result =
+          post(
+            TestRouterUris.ScanTmpDirect,
+            Some(emptyFile.fname),
+            Some("application/text")
+          )(
+            requestBody
+          ).futureValue
+
+        result.status mustBe BAD_REQUEST
+        result.body must include(CannotScanEmptyFile.message)
+      }
     }
 
     "receives a multipart file for scanning and saving as temp file" should {

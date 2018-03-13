@@ -23,15 +23,15 @@ sealed abstract class ClamError extends ScanResponse {
 }
 
 case class VirusFound(message: String) extends ClamError {
-  val isVirus = true
+  override val isVirus = true
 }
 
 case class ScanError(message: String) extends ClamError {
-  val isVirus = false
+  override val isVirus = false
 }
 
 case class InvalidFilename(message: String) extends ClamError {
-  val isVirus = false
+  override val isVirus = false
 }
 
 case object FileOk extends ScanResponse

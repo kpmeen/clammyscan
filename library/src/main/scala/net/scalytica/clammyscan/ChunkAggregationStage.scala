@@ -22,16 +22,15 @@ class ChunkAggregationStage(
     val chunkSize: Int,
     val maxBytes: Int
 ) extends GraphStage[FlowShape[ByteString, ByteString]] {
-  val in  = Inlet[ByteString]("Rechunking.in")
-  val out = Outlet[ByteString]("Rechunking.out")
+  val in: Inlet[ByteString]   = Inlet[ByteString]("Rechunking.in")
+  val out: Outlet[ByteString] = Outlet[ByteString]("Rechunking.out")
 
   override def initialAttributes: Attributes = Attributes.name("chunker")
 
   override def shape = FlowShape(in, out)
 
   // scalastyle:off method.length
-  override def createLogic(inheritedAttributes: Attributes) = {
-
+  override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = {
     new GraphStageLogic(shape) {
 
       private val rechunked     = ByteString.newBuilder
@@ -78,7 +77,8 @@ class ChunkAggregationStage(
               else emit(out, ite.head)
             }
 
-            completeStage()
+            if (receivedBytes > 0L) completeStage()
+            else failStage(ClammyException(CannotScanEmptyFile))
           }
 
         }

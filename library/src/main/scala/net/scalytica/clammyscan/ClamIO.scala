@@ -57,14 +57,8 @@ class ClamIO(
       .recover {
         case err: StreamTcpException =>
           logger.debug("An error occurred trying to connect to Clam", err)
-          throw ClammyException(couldNotConnect)
+          throw ClammyException(CouldNotConnect)
       }
-
-  /*
-   * Need a special flag to identify the first chunk, so we can ensure the
-   * correct ClamAV command sequence can be injected in front of the stream.
-   */
-  private[this] var commandInitiated: Boolean = false
 
   /**
    * Flow that builds chunks of expected size from the incoming elements. Also
@@ -90,25 +84,25 @@ class ClamIO(
    * unsigned integer.
    */
   private[this] def stream =
-    Flow[ByteString].mapConcat { bs =>
-      val builder = immutable.Seq.newBuilder[ByteString]
-      // If this is the first ByteString we need to prefix with the Instream
-      // command to tell clamd that we're going to start a new scan.
-      if (!commandInitiated) {
-        commandInitiated = true
-        builder += Instream.cmd
-      }
+    Flow[ByteString].statefulMapConcat { () =>
+      var commandInitiated: Boolean = false
+      bs =>
+        val builder = immutable.Seq.newBuilder[ByteString]
+        // If this is the first ByteString we need to prefix with the Instream
+        // command to tell clamd that we're going to start a new scan.
+        if (!commandInitiated) {
+          commandInitiated = true
+          builder += Instream.cmd
+        }
 
-      // If the current chunk is not a command and not the StreamCompleted
-      // chunk we append the size of the next chunk as specified in the clamd
-      // docs.
-      if (bs != StreamCompleted && !Command.isCommand(bs))
-        builder += unsignedInt(bs.length)
+        // If the current chunk is not a command and not the StreamCompleted
+        // chunk we append the size of the next chunk as specified in the clamd
+        // docs.
+        if (bs != StreamCompleted && !Command.isCommand(bs))
+          builder += unsignedInt(bs.length)
 
-      (builder += bs).result()
+        (builder += bs).result()
     }.concat {
-      // reset the command flag
-      commandInitiated = false
       // Append the stream completed bytes to tell clamd the end is reached.
       Source.single(StreamCompleted)
     }
@@ -135,9 +129,7 @@ class ClamIO(
    * @param filename the name of the file to be scanned
    * @return a complete `ClamSink`
    */
-  def scan(
-      filename: String
-  )(implicit s: ActorSystem): ClamSink = {
+  def scan(filename: String)(implicit s: ActorSystem): ClamSink = {
     logger.debug(s"Preparing to scan file $filename with clamd...")
     (chunker via stream via connection).toMat(sink)(Keep.right)
   }

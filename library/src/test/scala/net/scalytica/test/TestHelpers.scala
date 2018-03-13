@@ -44,6 +44,7 @@ trait TestResources {
   val eicarTxtFile = fileAsSource("eicar.com.txt")
   val eicarZipFile = fileAsSource("eicarcom2.zip")
   val largeFile    = fileAsSource("large.zip")
+  val emptyFile    = fileAsSource("empty.txt")
 
   def fileAsSource(fname: String): FileSource =
     FileSource(

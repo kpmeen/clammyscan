@@ -19,13 +19,12 @@ class ClamResponseStage
 
   val logger = Logger(getClass)
 
-  val in  = Inlet[ByteString]("ClamResponse.in")
-  val out = Outlet[ScanResponse]("ClamResponse.out")
+  val in: Inlet[ByteString]     = Inlet[ByteString]("ClamResponse.in")
+  val out: Outlet[ScanResponse] = Outlet[ScanResponse]("ClamResponse.out")
 
   override def shape = FlowShape(in, out)
 
-  override def createLogic(inheritedAttributes: Attributes) = {
-
+  override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = {
     new GraphStageLogic(shape) {
 
       case class ScanState(result: String = "") {

@@ -44,28 +44,28 @@ object ClamProtocol {
    * Command for initializing stream based AV scanning
    */
   case object Instream extends Command {
-    val cmd = ByteString.fromString(s"zINSTREAM$UnicodeNull")
+    override val cmd = ByteString.fromString(s"zINSTREAM$UnicodeNull")
   }
 
   /**
    * Command for sending clamd a ping
    */
   case object Ping extends Command {
-    val cmd = ByteString.fromString(s"zPING$UnicodeNull")
+    override val cmd = ByteString.fromString(s"zPING$UnicodeNull")
   }
 
   /**
    * Command for retrieving a statistics message from clamd
    */
   case object Stats extends Command {
-    val cmd = ByteString.fromString(s"zSTATS$UnicodeNull")
+    override val cmd = ByteString.fromString(s"zSTATS$UnicodeNull")
   }
 
   /**
    * Command for retrieving the version of the clamd
    */
   case object Version extends Command {
-    val cmd = ByteString.fromString("VERSION")
+    override val cmd = ByteString.fromString("VERSION")
   }
 
 }
