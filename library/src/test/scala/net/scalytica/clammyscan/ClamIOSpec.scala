@@ -5,7 +5,7 @@ import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import com.typesafe.config.ConfigFactory
 import net.scalytica.clammyscan.ClamProtocol.MaxSizeExceededResponse
-import net.scalytica.test.TestResources
+import net.scalytica.test.{FlakyTests, TestResources}
 import org.scalatest._
 import org.scalatest.tagobjects.Retryable
 
@@ -17,7 +17,7 @@ class ClamIOSpec
     with WordSpecLike
     with Matchers
     with BeforeAndAfterAll
-    with Retries
+    with FlakyTests
     with TestResources {
 
   implicit val sys: ActorSystem       = system
@@ -34,11 +34,6 @@ class ClamIOSpec
   }
 
   val clamIO = ClamIO(conf.host, conf.port, conf.timeout, conf.streamMaxLength)
-
-  override def withFixture(test: NoArgTest) = {
-    if (isRetryable(test)) withRetryOnFailure(super.withFixture(test))
-    else super.withFixture(test)
-  }
 
   "A ClamIO" which {
 

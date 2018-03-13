@@ -1,35 +1,18 @@
 package net.scalytica.clammyscan
 
-import net.scalytica.test.{TestAppContext, TestResources, TestRouterUris}
+import net.scalytica.test.{
+  FlakyTests,
+  TestAppContext,
+  TestResources,
+  TestRouterUris
+}
 import org.scalatest.tagobjects.Retryable
-import org.scalatest.{Canceled, Failed, Outcome, Retries}
 import play.api.test.Helpers._
 
 class DefaultConfigClammyScanSpec
     extends TestAppContext
-    with Retries
+    with FlakyTests
     with TestResources {
-
-  // scalastyle:off magic.number
-  val maxRetries = 5
-  // scalastyle:on magic.number
-
-  override def withFixture(test: NoArgTest) = {
-    if (isRetryable(test)) withRetryableFixture(test, maxRetries)
-    else super.withFixture(test)
-  }
-
-  def withRetryableFixture(test: NoArgTest, retries: Int): Outcome = {
-    val outcome = super.withFixture(test)
-    outcome match {
-      case Failed(_) | Canceled(_) =>
-        if (maxRetries == 1) super.withFixture(test)
-        else withRetryableFixture(test, retries - 1)
-
-      case other =>
-        other
-    }
-  }
 
   "ClammyScan with default configuration" that {
 
