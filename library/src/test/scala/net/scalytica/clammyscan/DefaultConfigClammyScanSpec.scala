@@ -3,6 +3,7 @@ package net.scalytica.clammyscan
 import net.scalytica.test.{TestAppContext, TestResources, TestRouterUris}
 import org.scalatest.Retries
 import org.scalatest.tagobjects.Retryable
+import org.scalatest.time.{Seconds, Span}
 import play.api.test.Helpers._
 
 class DefaultConfigClammyScanSpec
@@ -10,8 +11,12 @@ class DefaultConfigClammyScanSpec
     with Retries
     with TestResources {
 
+  // scalastyle:off magic.number
+  val delay: Span = Span(5, Seconds)
+  // scalastyle:on magic.number
+
   override def withFixture(test: NoArgTest) = {
-    if (isRetryable(test)) withRetryOnFailure(super.withFixture(test))
+    if (isRetryable(test)) withRetryOnFailure(delay)(super.withFixture(test))
     else super.withFixture(test)
   }
 
