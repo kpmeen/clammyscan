@@ -24,7 +24,7 @@ object Settings {
     "-language:postfixOps"
   )
 
-  val Scala_2_12 = "2.12.4"
+  val Scala_2_12 = "2.12.5"
   val Scala_2_11 = "2.11.12"
 
   val BaseSettings = Seq(
