@@ -2,6 +2,7 @@ import Settings._
 import Dependencies._
 import play.sbt.PlayImport
 import play.sbt.routes.RoutesKeys
+
 /*
 
     Build script for ClammyScan, a reactive integration with ClamAV.
@@ -11,15 +12,45 @@ import play.sbt.routes.RoutesKeys
 name := """clammyscan"""
 
 lazy val root =
-  (project in file(".")).settings(NoPublish).aggregate(library, sample)
+  (project in file("."))
+    .settings(NoPublish)
+    .aggregate(
+      sharedTesting,
+      streamsLib,
+      bodyParsers,
+      sample
+    )
 
-lazy val library = ClammyProject("clammyscan", Some("library"))
+lazy val sharedTesting = ClammyProject("shared-testing")
+  .settings(NoPublish)
+  .settings(
+    libraryDependencies ++= Seq(
+      TestingDeps.ScalaTest,
+      TestingDeps.Scalactic,
+      AkkaDeps.actorTestkit,
+      AkkaDeps.streamTestkit
+    )
+  )
+
+lazy val streamsLib = ClammyProject("clammyscan-streams", Some("streams-lib"))
   .settings(
     coverageMinimum := 80,
     coverageFailOnMinimum := true
   )
-  .settings(libraryDependencies ++= PlayDeps ++ AkkaDeps ++ ScalaTestDeps)
+  .settings(libraryDependencies ++= AkkaDeps.All ++ TestingDeps.AllNoPlay)
   .settings(BintrayPublish: _*)
+  .dependsOn(sharedTesting % Test)
+
+lazy val bodyParsers = ClammyProject("clammyscan", Some("bodyparsers"))
+  .settings(
+    coverageMinimum := 80,
+    coverageFailOnMinimum := true
+  )
+  .settings(
+    libraryDependencies ++= PlayDeps.All ++ AkkaDeps.All ++ TestingDeps.All
+  )
+  .settings(BintrayPublish: _*)
+  .dependsOn(streamsLib, sharedTesting % Test)
 
 lazy val sample = ClammyProject("sample")
   .enablePlugins(PlayScala)
@@ -35,7 +66,7 @@ lazy val sample = ClammyProject("sample")
       PlayImport.guice,
       PlayImport.ws,
       PlayImport.ehcache,
-      "com.typesafe.play" %% "play-json" % playJsonVersion
+      PlayDeps.PlayJson
     )
   )
-  .dependsOn(library)
+  .dependsOn(bodyParsers)

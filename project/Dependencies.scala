@@ -1,5 +1,6 @@
 import sbt._
 
+// scalastyle:off
 object Dependencies {
 
   val Resolvers = Seq(
@@ -11,27 +12,53 @@ object Dependencies {
   val playVersion      = play.core.PlayVersion.current
   val playJsonVersion  = "2.6.9"
   val akkaVersion      = "2.5.11"
+  val slf4jVersion     = "1.7.25"
+  val logbackVersion   = "1.2.3"
   val stestVersion     = "3.0.5"
   val stestPlusVersion = "3.1.2"
 
-  val PlayDeps = Seq(
-    "com.typesafe.play" %% "play"         % playVersion % Provided,
-    "com.typesafe.play" %% "play-guice"   % playVersion % Provided,
-    "com.typesafe.play" %% "play-logback" % playVersion % Provided,
-    "com.typesafe.play" %% "play-test"    % playVersion % Test
-  )
+  object PlayDeps {
+    val All = Seq(
+      "com.typesafe.play" %% "play"         % playVersion % Provided,
+      "com.typesafe.play" %% "play-guice"   % playVersion % Provided,
+      "com.typesafe.play" %% "play-logback" % playVersion % Provided,
+      "com.typesafe.play" %% "play-test"    % playVersion % Test
+    )
 
-  val AkkaDeps = Seq(
-    "com.typesafe.akka" %% "akka-actor"   % akkaVersion % Provided,
-    "com.typesafe.akka" %% "akka-stream"  % akkaVersion % Provided,
-    "com.typesafe.akka" %% "akka-slf4j"   % akkaVersion % Test,
-    "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test
-  )
+    val PlayJson = "com.typesafe.play" %% "play-json" % playJsonVersion
+  }
 
-  val ScalaTestDeps = Seq(
-    "org.scalactic"          %% "scalactic"          % stestVersion     % Test,
-    "org.scalatest"          %% "scalatest"          % stestVersion     % Test,
-    "org.scalatestplus.play" %% "scalatestplus-play" % stestPlusVersion % Test
-  )
+  object AkkaDeps {
+    val actor  = "com.typesafe.akka" %% "akka-actor"  % akkaVersion % Provided
+    val stream = "com.typesafe.akka" %% "akka-stream" % akkaVersion % Provided
+
+    val slf4j         = "com.typesafe.akka" %% "akka-slf4j"          % akkaVersion
+    val actorTestkit  = "com.typesafe.akka" %% "akka-testkit"        % akkaVersion
+    val streamTestkit = "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion
+
+    val All = Seq(
+      actor,
+      stream,
+      slf4j         % Test,
+      actorTestkit  % Test,
+      streamTestkit % Test
+    )
+  }
+
+  object LoggingDeps {
+    val Slf4jApi = "org.slf4j"      % "slf4j-api"       % slf4jVersion
+    val Slf4jNop = "org.slf4j"      % "slf4j-nop"       % slf4jVersion
+    val Logback  = "ch.qos.logback" % "logback-classic" % logbackVersion
+  }
+
+  object TestingDeps {
+    val Scalactic     = "org.scalactic"          %% "scalactic"          % stestVersion
+    val ScalaTest     = "org.scalatest"          %% "scalatest"          % stestVersion
+    val ScalaTestPlay = "org.scalatestplus.play" %% "scalatestplus-play" % stestPlusVersion
+
+    val AllNoPlay = Seq(Scalactic % Test, ScalaTest % Test)
+    val All =
+      Seq(Scalactic % Test, ScalaTest % Test, ScalaTestPlay % Test)
+  }
 
 }

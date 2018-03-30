@@ -1,9 +1,14 @@
 package controllers
 
 import javax.inject.Singleton
-
 import com.google.inject.Inject
 import net.scalytica.clammyscan._
+import net.scalytica.clammyscan.streams.{
+  ClamError,
+  FileOk,
+  ScannedBody,
+  VirusFound
+}
 import play.api.Logger
 import play.api.libs.Files
 import play.api.libs.json.Json
