@@ -6,8 +6,16 @@
 
 # ClammyScan
 
-ClammyScan is a Play! Framework Module that enables parallel anti-virus scanning
-of file upload streams.
+Contains libraries for use in akka-streams pipelines and Play! Framework
+applications that require AV scanning. 
+
+The streams library contains the akka-streams implementation that handles the
+communication with clamd.
+
+The body-parsers library contains a Play! Framework Module that provides access
+to body parsers enabling parallel anti-virus scanning of file upload streams.
+
+## Background
 
 Traditionally, AV scanning is handled by some background service running on the
 machine(s) where files are stored. And files are typically scanned after they've
@@ -15,7 +23,7 @@ been persisted. If the AV on the file server detects an infected file, it will
 typically be placed in a quarantine of some sort. In many cases this can cause
 broken file references and/or data inconsistencies.
 
-With ClammyScan this risk can be reduced since the file is scanned while it's
+With the ClammyScan body parsers this risk can be reduced since the file is scanned while it's
 being uploaded. This gives you control more control on how to react when a user
 tries to upload an infected file.
 
@@ -28,7 +36,12 @@ Add the dependency for ClammyScan to your `build.sbt`:
 resolvers += Resolver.jcenterRepo
 
 // See latest version badge above for current release
+
+// Play! Framework body parsers
 libraryDependencies += "net.scalytica" %% "clammyscan" % "<version>"
+
+// Akka Streams library that enables streaming data to clamd.
+libraryDependencies += "net.scalytica" %% "clammyscan-streams" % "<version>"
 ```
 
 Or you can clone the repository and build from source.
