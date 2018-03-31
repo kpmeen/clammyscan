@@ -3,11 +3,25 @@ import Dependencies._
 import play.sbt.PlayImport
 import play.sbt.routes.RoutesKeys
 
+import scala.sys.process._
+
 /*
 
     Build script for ClammyScan, a reactive integration with ClamAV.
 
  */
+
+lazy val startClamd  = taskKey[Unit]("Start clamd container.")
+lazy val stopClamd   = taskKey[Unit]("Stop clamd container.")
+lazy val cleanClamd  = taskKey[Unit]("Clean clamd container.")
+lazy val resetClamd  = taskKey[Unit]("Reset clamd container.")
+lazy val statusClamd = taskKey[Unit]("Status clamd container.")
+
+startClamd := { "./dockerClamAV.sh start" ! }
+stopClamd := { "./dockerClamAV.sh stop" ! }
+cleanClamd := { "./dockerClamAV.sh clean" ! }
+resetClamd := { "./dockerClamAV.sh reset" ! }
+statusClamd := { "./dockerClamAV.sh status" ! }
 
 name := """clammyscan"""
 
@@ -43,7 +57,7 @@ lazy val streamsLib = ClammyProject("clammyscan-streams", Some("streams-lib"))
 
 lazy val bodyParsers = ClammyProject("clammyscan", Some("bodyparsers"))
   .settings(
-    coverageMinimum := 80,
+    coverageMinimum := 75,
     coverageFailOnMinimum := true
   )
   .settings(
