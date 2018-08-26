@@ -27,6 +27,12 @@ name := """clammyscan"""
 
 lazy val root =
   (project in file("."))
+    .enablePlugins(GitLabChangeLogPlugin)
+    .settings(
+      gitlabProjectNamespace := "kpmeen",
+      gitlabProjectName := "clammyscan",
+      changeLogStartAtTagName := Some("v1.1.0")
+    )
     .settings(NoPublish)
     .aggregate(
       sharedTesting,
@@ -36,6 +42,7 @@ lazy val root =
     )
 
 lazy val sharedTesting = ClammyProject("shared-testing")
+  .disablePlugins(GitLabChangeLogPlugin)
   .settings(NoPublish)
   .settings(
     libraryDependencies ++= Seq(
@@ -47,6 +54,7 @@ lazy val sharedTesting = ClammyProject("shared-testing")
   )
 
 lazy val streamsLib = ClammyProject("clammyscan-streams", Some("streams-lib"))
+  .disablePlugins(GitLabChangeLogPlugin)
   .settings(
     coverageMinimum := 80,
     coverageFailOnMinimum := true
@@ -56,6 +64,7 @@ lazy val streamsLib = ClammyProject("clammyscan-streams", Some("streams-lib"))
   .dependsOn(sharedTesting % Test)
 
 lazy val bodyParsers = ClammyProject("clammyscan", Some("bodyparsers"))
+  .disablePlugins(GitLabChangeLogPlugin)
   .settings(
     coverageMinimum := 75,
     coverageFailOnMinimum := true
@@ -67,6 +76,7 @@ lazy val bodyParsers = ClammyProject("clammyscan", Some("bodyparsers"))
   .dependsOn(streamsLib, sharedTesting % Test)
 
 lazy val sample = ClammyProject("sample")
+  .disablePlugins(GitLabChangeLogPlugin)
   .enablePlugins(PlayScala)
   .settings(
     routesGenerator := InjectedRoutesGenerator,

@@ -24,12 +24,10 @@ object Settings {
     "-language:postfixOps"
   )
 
-  val Scala_2_12 = "2.12.5"
-  val Scala_2_11 = "2.11.12"
+  val ScalaVersion = "2.12.6"
 
   val BaseSettings = Seq(
-    scalaVersion := Scala_2_12,
-    crossScalaVersions := Seq(Scala_2_12, Scala_2_11),
+    scalaVersion := ScalaVersion,
     scalacOptions := ScalacOpts,
     organization := "net.scalytica",
     licenses += ("MIT", url("http://opensource.org/licenses/MIT")),

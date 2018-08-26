@@ -10,8 +10,8 @@ object Dependencies {
   )
 
   val playVersion      = play.core.PlayVersion.current
-  val playJsonVersion  = "2.6.9"
-  val akkaVersion      = "2.5.11"
+  val playJsonVersion  = "2.6.10"
+  val akkaVersion      = "2.5.15"
   val slf4jVersion     = "1.7.25"
   val logbackVersion   = "1.2.3"
   val stestVersion     = "3.0.5"
