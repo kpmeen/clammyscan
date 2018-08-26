@@ -32,7 +32,7 @@ trait TestResources {
 
   val PingResult = s"""{"ping":"PONG"}"""
 
-  val ExpectedVersionStr = "ClamAV 0.99.3"
+  val ExpectedVersionStr = """ClamAV \d*\.\d*\.\d*""".r
 
   // Akka stream Sources
   val eicarStrSource = Source.single[ByteString](ByteString(eicarString))

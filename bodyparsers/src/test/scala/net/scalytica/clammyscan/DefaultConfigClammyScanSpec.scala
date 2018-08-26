@@ -253,7 +253,7 @@ class DefaultConfigClammyScanSpec
 
         res.status mustBe OK
         res.contentType mustBe JSON
-        res.body must include(ExpectedVersionStr)
+        res.body must include regex ExpectedVersionStr
       }
 
       "respond to the stats command" in {
@@ -261,7 +261,7 @@ class DefaultConfigClammyScanSpec
 
         res.status mustBe OK
         res.contentType mustBe JSON
-        res.body must include(ExpectedVersionStr)
+        res.body must include regex ExpectedVersionStr
       }
     }
   }

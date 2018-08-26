@@ -72,7 +72,7 @@ class DisabledClammyScanSpec extends TestAppContext with TestResources {
 
         res.status mustBe OK
         res.contentType mustBe JSON
-        res.body must include(ExpectedVersionStr)
+        res.body must include regex ExpectedVersionStr
       }
 
       "still respond to the stats command" in {
@@ -80,7 +80,7 @@ class DisabledClammyScanSpec extends TestAppContext with TestResources {
 
         res.status mustBe OK
         res.contentType mustBe JSON
-        res.body must include(ExpectedVersionStr)
+        res.body must include regex ExpectedVersionStr
       }
     }
   }
