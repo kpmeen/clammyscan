@@ -24,7 +24,7 @@ object Settings {
     "-language:postfixOps"
   )
 
-  val ScalaVersion = "2.12.6"
+  val ScalaVersion = "2.12.7"
 
   val BaseSettings = Seq(
     scalaVersion := ScalaVersion,

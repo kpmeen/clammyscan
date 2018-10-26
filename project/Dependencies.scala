@@ -11,13 +11,14 @@ object Dependencies {
 
   val playVersion      = play.core.PlayVersion.current
   val playJsonVersion  = "2.6.10"
-  val akkaVersion      = "2.5.15"
+  val akkaVersion      = "2.5.17"
   val slf4jVersion     = "1.7.25"
   val logbackVersion   = "1.2.3"
   val stestVersion     = "3.0.5"
   val stestPlusVersion = "3.1.2"
 
   object PlayDeps {
+
     val All = Seq(
       "com.typesafe.play" %% "play"         % playVersion % Provided,
       "com.typesafe.play" %% "play-guice"   % playVersion % Provided,
@@ -57,6 +58,7 @@ object Dependencies {
     val ScalaTestPlay = "org.scalatestplus.play" %% "scalatestplus-play" % stestPlusVersion
 
     val AllNoPlay = Seq(Scalactic % Test, ScalaTest % Test)
+
     val All =
       Seq(Scalactic % Test, ScalaTest % Test, ScalaTestPlay % Test)
   }
