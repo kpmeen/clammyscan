@@ -37,7 +37,7 @@ class Application @Inject()(
           NotAcceptable(Json.obj("message" -> vf.message))
 
         case ce: ClamError =>
-          logger.error(s"An unknown error occured: ${ce.message}")
+          logger.error(s"An unknown error occurred: ${ce.message}")
           InternalServerError(Json.obj("message" -> ce.message))
 
         case FileOk =>
@@ -98,7 +98,7 @@ class Application @Inject()(
           NotAcceptable(Json.obj("message" -> vf.message))
 
         case ce: ClamError =>
-          logger.error(s"An unknown error occured: ${ce.message}")
+          logger.error(s"An unknown error occurred: ${ce.message}")
           InternalServerError(Json.obj("message" -> ce.message))
 
         case FileOk =>

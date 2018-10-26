@@ -49,7 +49,7 @@ trait TestResources {
       fname,
       FileIO.fromPath(
         f = Paths.get(self.getClass.getResource(s"/files/$fname").toURI),
-        chunkSize = 8192
+        chunkSize = 8192 // scalastyle:ignore
       )
     )
 }

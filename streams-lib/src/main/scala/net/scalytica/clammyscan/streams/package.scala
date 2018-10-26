@@ -17,7 +17,7 @@ package object streams {
     "Most likely because size limit was exceeded."
 
   val UnknownError = (filename: String) =>
-    s"An unknown error occured while trying to scan $filename with clamd"
+    s"An unknown error occurred while trying to scan $filename with clamd"
 
   val CouldNotConnect = ScanError("Connection to clamd caused an exception.")
 

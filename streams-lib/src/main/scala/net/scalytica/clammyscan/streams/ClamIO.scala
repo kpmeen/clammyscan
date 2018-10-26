@@ -51,7 +51,7 @@ class ClamIO(
         options = Vector(SendBufferSize(ClamIO.MaxChunkSize))
       )
       .recover {
-        case err: StreamTcpException =>
+        case _: StreamTcpException =>
           throw ClammyException(CouldNotConnect)
       }
 
@@ -92,8 +92,8 @@ class ClamIO(
           }
 
           // If the current chunk is not a command and not the StreamCompleted
-          // chunk we append the size of the next chunk as specified in the clamd
-          // docs.
+          // chunk we append the size of the next chunk as specified in the
+          // clamd docs.
           if (bs != StreamCompleted && !Command.isCommand(bs))
             builder += unsignedInt(bs.length)
 

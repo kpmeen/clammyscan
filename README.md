@@ -120,7 +120,7 @@ Scans your file and returns a result without persisting the file in any way.
           NotAcceptable(Json.obj("message" -> vf.message))
 
         case ce: ClamError =>
-          logger.error(s"An unknown error occured: ${ce.message}")
+          logger.error(s"An unknown error occurred: ${ce.message}")
           InternalServerError(Json.obj("message" -> ce.message))
 
         case FileOk =>
@@ -199,7 +199,7 @@ Scans your file and returns a result without persisting the file in any way.
           NotAcceptable(Json.obj("message" -> vf.message))
 
         case ce: ClamError =>
-          logger.error(s"An unknown error occured: ${ce.message}")
+          logger.error(s"An unknown error occurred: ${ce.message}")
           InternalServerError(Json.obj("message" -> ce.message))
 
         case FileOk =>

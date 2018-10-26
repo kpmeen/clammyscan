@@ -6,11 +6,14 @@ sealed trait ScanResponse
 
 object ScanResponse {
 
+  private[this] val MaxSizeExceededError = ScanError(
+    s"Scan failed because: $MaxSizeExceededResponse"
+  )
+
   def fromString(s: String): ScanResponse = {
     if (OkResponse.equals(s)) FileOk
     else if (UnknownCommand.equals(s)) ScanError(s)
-    else if (s.startsWith(MaxSizeExceededResponse))
-      ScanError(s"Scan failed because: $MaxSizeExceededResponse")
+    else if (s.startsWith(MaxSizeExceededResponse)) MaxSizeExceededError
     else if (InfectedResponse.findFirstIn(s).nonEmpty) VirusFound(s)
     else ScanError(IncompleteResponse)
   }

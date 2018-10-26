@@ -61,7 +61,7 @@ class DefaultConfigClammyScanSpec
       }
 
       // scalastyle:off line.size.limit
-      "fail scanning file when size is larger than clam config" taggedAs Retryable in {
+      "fail scan when size is larger than clam config" taggedAs Retryable in {
         val requestBody = multipart(largeFile, Some("application/zip"))
         val result =
           post(

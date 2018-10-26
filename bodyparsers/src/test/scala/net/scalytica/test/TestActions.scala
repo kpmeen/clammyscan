@@ -23,7 +23,7 @@ trait TestActions {
   def multipartScanner[A](
       scan: ClamParser[A]
   )(
-      f: (ScannedBody[A]) => Result
+      f: ScannedBody[A] => Result
   )(implicit ec: ExecutionContext): Action[ClamMultipart[A]] =
     new ActionBuilderImpl(scan).apply { req =>
       req.body.files.headOption
@@ -36,18 +36,20 @@ trait TestActions {
   def directScanner[A](
       scan: ChunkedClamParser[A]
   )(
-      f: (ScannedBody[A]) => Result
+      f: ScannedBody[A] => Result
   )(implicit ec: ExecutionContext): Action[ScannedBody[A]] =
     new ActionBuilderImpl(scan).apply(r => f(r.body))
 
   private[this] def scanOnlyResHandler(sb: ScannedBody[Unit]): Result = {
     sb.scanResponse match {
       case FileOk =>
-        sb.maybeRef.map { _ =>
-          ExpectationFailed(
-            Json.obj("message" -> "File should not be persisted")
-          )
-        }.getOrElse(Ok)
+        sb.maybeRef
+          .map { _ =>
+            ExpectationFailed(
+              Json.obj("message" -> "File should not be persisted")
+            )
+          }
+          .getOrElse(Ok)
 
       case vf: VirusFound =>
         NotAcceptable(Json.obj("message" -> vf.message))
@@ -71,21 +73,25 @@ trait TestActions {
 
       case vf: VirusFound =>
         if (parser.clamConfig.canRemoveInfectedFiles) {
-          sb.maybeRef.map { _ =>
-            ExpectationFailed(
-              Json.obj("message" -> "File should not be persisted")
-            )
-          }.getOrElse {
-            NotAcceptable(Json.obj("message" -> vf.message))
-          }
+          sb.maybeRef
+            .map { _ =>
+              ExpectationFailed(
+                Json.obj("message" -> "File should not be persisted")
+              )
+            }
+            .getOrElse {
+              NotAcceptable(Json.obj("message" -> vf.message))
+            }
         } else {
-          sb.maybeRef.map { _ =>
-            NotAcceptable(Json.obj("message" -> vf.message))
-          }.getOrElse {
-            ExpectationFailed(
-              Json.obj("message" -> "File should be persisted")
-            )
-          }
+          sb.maybeRef
+            .map { _ =>
+              NotAcceptable(Json.obj("message" -> vf.message))
+            }
+            .getOrElse {
+              ExpectationFailed(
+                Json.obj("message" -> "File should be persisted")
+              )
+            }
         }
 
       case ce: ClamError =>

@@ -4,9 +4,7 @@ import org.scalatest._
 
 trait FlakyTests extends Retries { self: TestSuite =>
 
-  // scalastyle:off magic.number
-  val maxRetries = 5
-  // scalastyle:on magic.number
+  val maxRetries = 5 // scalastyle:ignore
 
   override def withFixture(test: NoArgTest) = {
     if (isRetryable(test)) withRetryableFixture(test, maxRetries)
