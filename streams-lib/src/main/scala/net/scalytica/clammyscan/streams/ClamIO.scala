@@ -79,28 +79,30 @@ class ClamIO(
    * unsigned integer.
    */
   private[this] def stream =
-    Flow[ByteString].statefulMapConcat { () =>
-      var commandInitiated: Boolean = false
-      bs =>
-        val builder = immutable.Seq.newBuilder[ByteString]
-        // If this is the first ByteString we need to prefix with the Instream
-        // command to tell clamd that we're going to start a new scan.
-        if (!commandInitiated) {
-          commandInitiated = true
-          builder += Instream.cmd
-        }
+    Flow[ByteString]
+      .statefulMapConcat { () =>
+        var commandInitiated: Boolean = false
+        bs =>
+          val builder = immutable.Seq.newBuilder[ByteString]
+          // If this is the first ByteString we need to prefix with the Instream
+          // command to tell clamd that we're going to start a new scan.
+          if (!commandInitiated) {
+            commandInitiated = true
+            builder += Instream.cmd
+          }
 
-        // If the current chunk is not a command and not the StreamCompleted
-        // chunk we append the size of the next chunk as specified in the clamd
-        // docs.
-        if (bs != StreamCompleted && !Command.isCommand(bs))
-          builder += unsignedInt(bs.length)
+          // If the current chunk is not a command and not the StreamCompleted
+          // chunk we append the size of the next chunk as specified in the clamd
+          // docs.
+          if (bs != StreamCompleted && !Command.isCommand(bs))
+            builder += unsignedInt(bs.length)
 
-        (builder += bs).result()
-    }.concat {
-      // Append the stream completed bytes to tell clamd the end is reached.
-      Source.single(StreamCompleted)
-    }
+          (builder += bs).result()
+      }
+      .concat {
+        // Append the stream completed bytes to tell clamd the end is reached.
+        Source.single(StreamCompleted)
+      }
 
   /**
    * Sink implementation that yields a ScanResponse when it's completed.

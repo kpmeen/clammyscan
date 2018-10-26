@@ -50,18 +50,22 @@ class Application @Inject()(
    */
   def scanTempFile: Action[ClamMultipart[Files.TemporaryFile]] =
     Action(clammyScan.scanWithTmpFile) { request =>
-      request.body.files.headOption.map { f =>
-        val fname = f.ref.maybeRef.get.path.getFileName
-        f.ref.scanResponse match {
-          case err: ClamError =>
-            Ok(Json.obj("message" -> s"$fname scan result was: ${err.message}"))
+      request.body.files.headOption
+        .map { f =>
+          val fname = f.ref.maybeRef.get.path.getFileName
+          f.ref.scanResponse match {
+            case err: ClamError =>
+              Ok(
+                Json.obj("message" -> s"$fname scan result was: ${err.message}")
+              )
 
-          case FileOk =>
-            Ok(Json.obj("message" -> s"$fname uploaded successfully"))
+            case FileOk =>
+              Ok(Json.obj("message" -> s"$fname uploaded successfully"))
+          }
         }
-      }.getOrElse {
-        BadRequest("could not find attached file")
-      }
+        .getOrElse {
+          BadRequest("could not find attached file")
+        }
     }
 
   /**
@@ -69,18 +73,22 @@ class Application @Inject()(
    */
   def directTempFile: Action[ScannedBody[Files.TemporaryFile]] =
     Action(clammyScan.directScanWithTmpFile) { request =>
-      request.body.maybeRef.map { ref =>
-        val fname = ref.path.getFileName
-        request.body.scanResponse match {
-          case err: ClamError =>
-            Ok(Json.obj("message" -> s"$fname scan result was: ${err.message}"))
+      request.body.maybeRef
+        .map { ref =>
+          val fname = ref.path.getFileName
+          request.body.scanResponse match {
+            case err: ClamError =>
+              Ok(
+                Json.obj("message" -> s"$fname scan result was: ${err.message}")
+              )
 
-          case FileOk =>
-            Ok(Json.obj("message" -> s"$fname uploaded successfully"))
+            case FileOk =>
+              Ok(Json.obj("message" -> s"$fname uploaded successfully"))
+          }
         }
-      }.getOrElse {
-        Ok(Json.obj("message" -> s"Request did not contain any files"))
-      }
+        .getOrElse {
+          Ok(Json.obj("message" -> s"Request did not contain any files"))
+        }
     }
 
   def directScanFile: Action[ScannedBody[Unit]] =

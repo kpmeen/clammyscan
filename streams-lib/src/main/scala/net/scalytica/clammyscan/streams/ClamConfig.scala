@@ -40,10 +40,12 @@ class ClamConfig(config: Config) extends ConfigKeys {
    * Socket timeout for clam. Defaults to 5 seconds.
    */
   lazy val timeout: Duration = {
-    Option(config.getDuration(timeoutKey)).map { ms =>
-      if (ms.isZero) Duration.Inf
-      else Duration(ms.toMillis, TimeUnit.MILLISECONDS)
-    }.getOrElse(DefaultTimeout)
+    Option(config.getDuration(timeoutKey))
+      .map { ms =>
+        if (ms.isZero) Duration.Inf
+        else Duration(ms.toMillis, TimeUnit.MILLISECONDS)
+      }
+      .getOrElse(DefaultTimeout)
   }
 
   lazy val streamMaxLength: Int =

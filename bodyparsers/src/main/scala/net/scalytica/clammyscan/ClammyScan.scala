@@ -258,29 +258,31 @@ class ClammyScanParser @Inject()(
 
       }
       .validateM { (data: ClamMultipart[A]) =>
-        data.files.headOption.map { hf =>
-          hf.ref.scanResponse match {
-            case err: ClamError =>
-              val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
-              Future.successful {
-                handleError(data, err)(maybeFile.foreach(remove))
-              }
+        data.files.headOption
+          .map { hf =>
+            hf.ref.scanResponse match {
+              case err: ClamError =>
+                val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
+                Future.successful {
+                  handleError(data, err)(maybeFile.foreach(remove))
+                }
 
-            case FileOk =>
-              Future.successful(Right(data))
+              case FileOk =>
+                Future.successful(Right(data))
 
+            }
           }
-        }.getOrElse {
-          Future.successful {
-            Left(
-              BadRequest(
-                Json.obj(
-                  "message" -> "Unable to locate any files after scan result"
+          .getOrElse {
+            Future.successful {
+              Left(
+                BadRequest(
+                  Json.obj(
+                    "message" -> "Unable to locate any files after scan result"
+                  )
                 )
               )
-            )
+            }
           }
-        }
       }
   }
 
