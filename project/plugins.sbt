@@ -27,5 +27,3 @@ addSbtPlugin("com.codacy"    %% "sbt-codacy-coverage" % "1.3.15")
 // Release management
 addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.9")
 addSbtPlugin("org.foundweekends" % "sbt-bintray" % "0.5.4")
-// GitLab changelog plugin
-addSbtPlugin("net.scalytica" % "sbt-gitlab-changelog" % "0.1.2")

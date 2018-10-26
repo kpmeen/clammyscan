@@ -7,7 +7,6 @@ variables:
   DOCKER_DRIVER: overlay
   # Setting specific folder for sbt-coursier to cache artifacts
   COURSIER_CACHE: "/root/cache/coursier"
-  GITLAB_API_TOKEN: $CI_JOB_TOKEN
 
 cache:
   untracked: true

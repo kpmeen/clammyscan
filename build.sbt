@@ -3,8 +3,11 @@ import Dependencies._
 import play.sbt.PlayImport
 import play.sbt.routes.RoutesKeys
 
+import ReleaseTransformations._
+
 import scala.sys.process._
 
+// scalastyle:off
 /*
 
     Build script for ClammyScan, a reactive integration with ClamAV.
@@ -25,14 +28,22 @@ statusClamd := { "./dockerClamAV.sh status" ! }
 
 name := """clammyscan"""
 
+releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,
+  inquireVersions,
+  runClean,
+  runTest,
+  setReleaseVersion,
+  commitReleaseVersion, // performs the initial git checks
+  tagRelease,
+  publishArtifacts, // checks whether `publishTo` is properly set up
+  setNextVersion,
+  commitNextVersion,
+  pushChanges // also checks that an upstream branch is properly configured
+)
+
 lazy val root =
   (project in file("."))
-    .enablePlugins(GitLabChangeLogPlugin)
-    .settings(
-      gitlabProjectNamespace := "kpmeen",
-      gitlabProjectName := "clammyscan",
-      changeLogStartAtTagName := Some("v1.1.0")
-    )
     .settings(NoPublish)
     .aggregate(
       sharedTesting,
@@ -42,7 +53,6 @@ lazy val root =
     )
 
 lazy val sharedTesting = ClammyProject("shared-testing")
-  .disablePlugins(GitLabChangeLogPlugin)
   .settings(NoPublish)
   .settings(
     libraryDependencies ++= Seq(
@@ -54,7 +64,6 @@ lazy val sharedTesting = ClammyProject("shared-testing")
   )
 
 lazy val streamsLib = ClammyProject("clammyscan-streams", Some("streams-lib"))
-  .disablePlugins(GitLabChangeLogPlugin)
   .settings(
     coverageMinimum := 80,
     coverageFailOnMinimum := true
@@ -64,7 +73,6 @@ lazy val streamsLib = ClammyProject("clammyscan-streams", Some("streams-lib"))
   .dependsOn(sharedTesting % Test)
 
 lazy val bodyParsers = ClammyProject("clammyscan", Some("bodyparsers"))
-  .disablePlugins(GitLabChangeLogPlugin)
   .settings(
     coverageMinimum := 75,
     coverageFailOnMinimum := true
@@ -76,7 +84,6 @@ lazy val bodyParsers = ClammyProject("clammyscan", Some("bodyparsers"))
   .dependsOn(streamsLib, sharedTesting % Test)
 
 lazy val sample = ClammyProject("sample")
-  .disablePlugins(GitLabChangeLogPlugin)
   .enablePlugins(PlayScala)
   .settings(
     routesGenerator := InjectedRoutesGenerator,
