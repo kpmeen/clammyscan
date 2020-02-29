@@ -16,7 +16,7 @@ stages:
   - test
 
 check style and formatting:
-  image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.13
+  image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.13_jdk11
   stage: stylecheck
   script:
     - sbt clean scalastyle scalafmt
@@ -35,7 +35,7 @@ check style and formatting:
       command: ["-m", "2M"]
 
 run test suites for 2.12:
-  image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.12
+  image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.12_jdk11
   <<: *test_settings
   script:
     # Build the project
@@ -44,7 +44,7 @@ run test suites for 2.12:
     - sbt ++2.12.10 coverageAggregate
 
 run test suites for 2.13:
-  image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.13
+  image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.13_jdk11
   <<: *test_settings
   script:
     # Build the project
