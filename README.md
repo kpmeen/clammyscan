@@ -1,9 +1,3 @@
-[![Join the chat at https://gitter.im/scalytica/clammyscan](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scalytica/clammyscan?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Codacy Badge](https://api.codacy.com/project/badge/grade/4a510cbec8f04bccb849793b5b1c981a)](https://www.codacy.com/app/kp/clammyscan)
-[![Codacy Badge](https://api.codacy.com/project/badge/coverage/4a510cbec8f04bccb849793b5b1c981a)](https://www.codacy.com/app/kp/clammyscan)
-[![pipeline status](https://gitlab.com/kpmeen/clammyscan/badges/master/pipeline.svg)](https://gitlab.com/kpmeen/clammyscan/commits/master)
-[ ![Download](https://api.bintray.com/packages/kpmeen/maven/clammyscan/images/download.svg) ](https://bintray.com/kpmeen/maven/clammyscan/_latestVersion)
-
 # ClammyScan
 
 Contains libraries for use in akka-streams pipelines and Play! Framework

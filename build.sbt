@@ -82,7 +82,7 @@ lazy val streamsLib = ClammyProject("clammyscan-streams", Some("streams-lib"))
 
 lazy val bodyParsers = ClammyProject("clammyscan", Some("bodyparsers"))
   .settings(
-    coverageMinimum := 75,
+    coverageMinimum := 70,
     coverageFailOnMinimum := true
   )
   .settings(
