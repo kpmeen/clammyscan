@@ -1,0 +1,20 @@
+<configuration>
+
+  <appender name="ASYNC_STDOUT" class="ch.qos.logback.classic.AsyncAppender">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>
+          %level %logger{15} - %message%n%xException{25}
+        </pattern>
+      </encoder>
+    </appender>
+  </appender>
+
+  <logger name="net.scalytica" level="OFF" />
+
+  <!-- Root loggers catch all other events that are not explicitly handled-->
+  <root level="OFF">
+    <appender-ref ref="ASYNC_STDOUT"/>
+  </root>
+
+</configuration>
