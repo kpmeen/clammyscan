@@ -12,36 +12,36 @@ import scala.concurrent.ExecutionContext
 
 object TestRouterUris {
 
-  val ScanMultiPart    = "/scanMultipart"
-  val ScanTmpMultiPart = "/scanTmpMultipart"
-  val ScanDirect       = "/scanDirect"
-  val ScanTmpDirect    = "/scanTmpDirect"
-  val Ping             = "/ping"
-  val Version          = "/version"
-  val Stats            = "/stats"
+  val MultipartScanOnly = "/multipartScanOnly"
+  val MultiPartScanTmp  = "/multipartScanTmp"
+  val DirectScanOnly    = "/directScanOnly"
+  val DirectScanTmp     = "/directScanTmp"
+  val Ping              = "/ping"
+  val Version           = "/version"
+  val Stats             = "/stats"
 
 }
 
-class TestRouter @Inject()(
+class TestRouter @Inject() (
     implicit ec: ExecutionContext,
     clammy: ClammyScanParser,
     ab: DefaultActionBuilder
 ) extends SimpleRouter
     with TestActions {
 
-  // scalastyle:off line.size.limit
+  // scalastyle:off
   // format: off
   override def routes: Routes = {
-    case POST(p"/scanMultipart" ? q_?"filename=$fname" & q_?"contentType=$ctype") =>
-      scanOnlyAction(clammy)
+    case POST(p"/multipartScanOnly" ? q_?"filename=${fname@_}" & q_?"contentType=${ctype@_}") =>
+      multipartScanOnlyAction(clammy)
 
-    case POST(p"/scanDirect" ? q_?"filename=$fname" & q_?"contentType=$ctype") =>
+    case POST(p"/directScanOnly" ? q_?"filename=${fname@_}" & q_?"contentType=${ctype@_}") =>
       directScanOnlyAction(clammy)
 
-    case POST(p"/scanTmpMultipart" ? q_?"filename=$fname" & q_?"contentType=$ctype") =>
-      scanTmpAction(clammy)
+    case POST(p"/multipartScanTmp" ? q_?"filename=${fname@_}" & q_?"contentType=${ctype@_}") =>
+      multipartScanTmpAction(clammy)
 
-    case POST(p"/scanTmpDirect" ? q_?"filename=$fname" & q_?"contentType=$ctype") =>
+    case POST(p"/directScanTmp" ? q_?"filename=${fname@_}" & q_?"contentType=${ctype@_}") =>
       directTmpAction(clammy)
 
     case GET(p"/ping") =>
@@ -59,6 +59,6 @@ class TestRouter @Inject()(
   }
 
   // format: on
-  // scalastyle:on line.size.limit
+  // scalastyle:on
 
 }

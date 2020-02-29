@@ -93,7 +93,7 @@ abstract class BaseScanParser(
         regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
           case Some(_) => false
           case None    => true
-      }
+        }
     )
 
   /**
@@ -122,23 +122,27 @@ abstract class BaseScanParser(
       save: ToSaveSink[A]
   ): (ClamSink, SaveSink[A]) =
     if (fileNameValid(filename)) {
+      cbpLogger.trace(s"Setting up clammySink for $filename")
       (clammySink(filename), save(filename, contentType))
     } else {
+      val msg = s"Filename $filename contains illegal characters"
+      cbpLogger.warn(msg)
+
       val errSave = Sink.cancelled[ByteString].mapMaterializedValue { _ =>
         Future.successful(None)
       }
-      val errScan = ClamIO.cancelled(
-        InvalidFilename(s"Filename $filename contains illegal characters")
-      )
+      val errScan = ClamIO.cancelled(InvalidFilename(msg))
 
       (errScan, errSave)
     }
 
   private def exceptionRecovery: PartialFunction[Throwable, ScanError] = {
     case cex: ClammyException =>
+      cbpLogger.warn(s"Scan resulted in an exception: $cex.")
       cex.scanError
 
     case stex: StreamTcpException =>
+      cbpLogger.warn(s"Scan resulted in an exception: $stex.")
       ScanError(stex.getMessage)
 
     case ex =>
@@ -189,6 +193,7 @@ abstract class BaseScanParser(
   ): Either[Result, A] = {
     scanRes match {
       case vf: VirusFound =>
+        cbpLogger.trace(s"Virus found: $vf.")
         // We have encountered the dreaded VIRUS...run awaaaaay
         if (clamConfig.canRemoveInfectedFiles) {
           remove
@@ -200,6 +205,7 @@ abstract class BaseScanParser(
         }
 
       case clamError: ClamError =>
+        cbpLogger.trace(s"Scan resulted in an error: $clamError.")
         if (clamConfig.canRemoveOnError) remove
         if (clamConfig.shouldFailOnError) {
           Left(BadRequest(Json.obj("message" -> clamError.message)))
@@ -207,34 +213,42 @@ abstract class BaseScanParser(
           Right(res)
         }
 
-      case _ => Right(res)
+      case _ =>
+        cbpLogger.trace("Scan completed successfully.")
+        Right(res)
     }
   }
 
   /**
    * Execute a ping against clamd
    */
-  def ping(implicit exec: ExecutionContext): Future[String] =
+  def ping(implicit exec: ExecutionContext): Future[String] = {
+    cbpLogger.trace("Received ping call...")
     ClamIO(clamConfig).ping
+  }
 
   /**
    * Get the clamd version string
    */
-  def version(implicit exec: ExecutionContext): Future[String] =
+  def version(implicit exec: ExecutionContext): Future[String] = {
+    cbpLogger.trace("Received version call...")
     ClamIO(clamConfig).version
+  }
 
   /**
    * Get the clamd stats
    */
-  def stats(implicit exec: ExecutionContext): Future[String] =
+  def stats(implicit exec: ExecutionContext): Future[String] = {
+    cbpLogger.trace("Received stats call...")
     ClamIO(clamConfig).stats
+  }
 
 }
 
 /**
  * Default implementation of the ClammyScan parsers
  */
-class ClammyScanParser @Inject()(
+class ClammyScanParser @Inject() (
     sys: ActorSystem,
     mat: Materializer,
     tempFileCreator: TemporaryFileCreator,
@@ -248,7 +262,8 @@ class ClammyScanParser @Inject()(
   )(implicit ec: ExecutionContext): ClamParser[A] = {
     bodyParsers
       .multipartFormData[ScannedBody[A]] {
-        case FileInfo(partName, filename, contentType) =>
+        case FileInfo(partName, filename, contentType, _) =>
+          cbpLogger.trace(s"Processing file upload of $filename...")
           val (clamSink, saveSink) = sinks(filename, contentType)(save)
           val comb                 = broadcastGraph(clamSink, saveSink)
 
@@ -257,9 +272,10 @@ class ClammyScanParser @Inject()(
           }
 
       }
-      .validateM { (data: ClamMultipart[A]) =>
+      .validateM { data: ClamMultipart[A] =>
         data.files.headOption
           .map { hf =>
+            cbpLogger.trace(s"Scan result is ${hf.ref.scanResponse}")
             hf.ref.scanResponse match {
               case err: ClamError =>
                 val maybeFile = data.files.headOption.flatMap(_.ref.maybeRef)
@@ -273,15 +289,12 @@ class ClammyScanParser @Inject()(
             }
           }
           .getOrElse {
-            Future.successful {
+            cbpLogger.warn(FileEmptyOrMissing.message)
+            Future.successful(
               Left(
-                BadRequest(
-                  Json.obj(
-                    "message" -> "Unable to locate any files after scan result"
-                  )
-                )
+                BadRequest(Json.obj("message" -> FileEmptyOrMissing.message))
               )
-            }
+            )
           }
       }
   }
@@ -293,17 +306,23 @@ class ClammyScanParser @Inject()(
       val tf = tempFileCreator.create("multipartBody", "scanWithTempFile")
       FileIO.toPath(tf.path).mapMaterializedValue(_.map(_ => Option(tf)))
     },
-    remove = tmpFile => tmpFile.delete()
+    remove = { tmpFile =>
+      val status = tmpFile.delete()
+      cbpLogger.trace(s"Temporary file delete: $status")
+    }
   )
 
-  def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] = scan[Unit](
-    save = (_, _) => {
-      Sink
-        .cancelled[ByteString]
-        .mapMaterializedValue(_ => Future.successful(None))
-    },
-    remove = _ => cbpLogger.debug("Only scanning, no file to remove")
-  )
+  def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] = {
+    cbpLogger.trace("Setting up file scanner...")
+    scan[Unit](
+      save = { (_, _) =>
+        Sink
+          .cancelled[ByteString]
+          .mapMaterializedValue(_ => Future.successful(None))
+      },
+      remove = _ => cbpLogger.debug("Only scanning, no file to remove")
+    )
+  }
 
   def directScan[A](
       save: ToSaveSink[A],
@@ -333,7 +352,10 @@ class ClammyScanParser @Inject()(
         .mapMaterializedValue(_.map(_ => Option(tempFile)))
       s
     },
-    remove = tmpFile => tmpFile.delete()
+    remove = { tmpFile =>
+      val status = tmpFile.delete()
+      cbpLogger.trace(s"Temporary file delete: $status")
+    }
   )
 
   def directScanOnly(

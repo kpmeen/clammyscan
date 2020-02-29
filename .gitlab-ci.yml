@@ -1,7 +1,7 @@
 ######################################################################
 # GitLab CI build script for the ClammyScan project                   #
 ######################################################################
-image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.12
+image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.13
 
 variables:
   DOCKER_DRIVER: overlay
@@ -41,4 +41,5 @@ run test suites for 2.12:
   script:
     # Build the project
     - sbt clean coverage test coverageReport
-    - sbt coverageAggregate codacyCoverage
+    #- sbt coverageAggregate codacyCoverage
+    - sbt coverageAggregate

@@ -27,29 +27,33 @@ trait TestResources {
   val clamdUnavailableResult =
     Some("""{"message":"Connection to clamd caused an exception."}""")
 
-  val eicarString = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-" +
-    "ANTIVIRUS-TEST-FILE!$H+H*\u0000"
+  val eicarString =
+    """X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"""
 
   val PingResult = s"""{"ping":"PONG"}"""
 
   val ExpectedVersionStr = """ClamAV \d*\.\d*\.\d*""".r
 
   // Akka stream Sources
-  val eicarStrSource = Source.single[ByteString](ByteString(eicarString))
+  lazy val eicarStrSource = Source.single[ByteString](ByteString(eicarString))
 
-  val cleanFile    = fileAsSource("clean.pdf")
-  val eicarFile    = fileAsSource("eicar.com")
-  val eicarTxtFile = fileAsSource("eicar.com.txt")
-  val eicarZipFile = fileAsSource("eicarcom2.zip")
-  val largeFile    = fileAsSource("large.zip")
-  val emptyFile    = fileAsSource("empty.txt")
+  lazy val cleanFile    = fileAsSource("clean.pdf")
+  lazy val eicarFile    = fileAsSource("eicar.com")
+  lazy val eicarTxtFile = fileAsSource("eicar.com.txt")
+  lazy val eicarZipFile = fileAsSource("eicarcom2.zip")
+  lazy val largeFile    = fileAsSource("large.zip")
+  lazy val emptyFile    = fileAsSource("empty.txt")
 
-  def fileAsSource(fname: String): FileSource =
-    FileSource(
-      fname,
-      FileIO.fromPath(
-        f = Paths.get(self.getClass.getResource(s"/files/$fname").toURI),
-        chunkSize = 8192 // scalastyle:ignore
-      )
+  def fileAsSource(fname: String): FileSource = {
+    val filePath = Paths.get(self.getClass.getResource(s"/files/$fname").toURI)
+    val fileSrc = FileIO.fromPath(
+      f = filePath,
+      chunkSize = 8192 // scalastyle:ignore
     )
+
+    FileSource(
+      fname = fname,
+      source = fileSrc
+    )
+  }
 }

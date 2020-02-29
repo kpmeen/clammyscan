@@ -2,6 +2,7 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
+GET         /version    controllers.Application.clamVersion
 POST        /scan       controllers.Application.scanFile
 POST        /scanTemp   controllers.Application.scanTempFile
 POST        /directScan controllers.Application.directScanFile

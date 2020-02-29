@@ -10,20 +10,21 @@ object Dependencies {
   )
 
   val playVersion      = play.core.PlayVersion.current
-  val playJsonVersion  = "2.6.10"
-  val akkaVersion      = "2.5.17"
+  val playJsonVersion  = "2.8.1"
+  val akkaVersion      = "2.6.3"
   val slf4jVersion     = "1.7.25"
   val logbackVersion   = "1.2.3"
-  val stestVersion     = "3.0.5"
-  val stestPlusVersion = "3.1.2"
+  val stestVersion     = "3.0.8" // 3.1.x is not yet compatible with scalatestplus-play
+  val stestPlusVersion = "5.0.0"
 
   object PlayDeps {
 
     val All = Seq(
-      "com.typesafe.play" %% "play"         % playVersion % Provided,
-      "com.typesafe.play" %% "play-guice"   % playVersion % Provided,
-      "com.typesafe.play" %% "play-logback" % playVersion % Provided,
-      "com.typesafe.play" %% "play-test"    % playVersion % Test
+      "com.typesafe.play" %% "play"                  % playVersion % Provided,
+      "com.typesafe.play" %% "play-guice"            % playVersion % Provided,
+      "com.typesafe.play" %% "play-logback"          % playVersion % Provided,
+      "com.typesafe.play" %% "play-akka-http-server" % playVersion % Test,
+      "com.typesafe.play" %% "play-test"             % playVersion % Test
     )
 
     val PlayJson = "com.typesafe.play" %% "play-json" % playJsonVersion
@@ -61,6 +62,21 @@ object Dependencies {
 
     val All =
       Seq(Scalactic % Test, ScalaTest % Test, ScalaTestPlay % Test)
+  }
+
+  object Overrides {
+
+    val overrides = Seq(
+      "com.typesafe.akka" %% "akka-discovery"           % akkaVersion,
+      "com.typesafe.akka" %% "akka-protobuf"            % akkaVersion,
+      "com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
+      "com.typesafe.akka" %% "akka-actor"               % akkaVersion,
+      "com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
+      "com.typesafe.akka" %% "akka-stream"              % akkaVersion,
+      "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion,
+      "com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion,
+      "com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion
+    )
   }
 
 }

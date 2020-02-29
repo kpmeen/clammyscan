@@ -17,7 +17,7 @@ import play.api.mvc._
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class Application @Inject()(
+class Application @Inject() (
     implicit ec: ExecutionContext,
     clammyScan: ClammyScan,
     val controllerComponents: ControllerComponents
@@ -105,5 +105,9 @@ class Application @Inject()(
           Ok(Json.obj("message" -> "file is clean"))
       }
     }
+
+  def clamVersion = Action.async { _ =>
+    clammyScan.version.map(v => Ok(Json.obj("version" -> v)))
+  }
 
 }

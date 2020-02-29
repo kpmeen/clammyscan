@@ -1,6 +1,11 @@
 package net.scalytica.clammyscan.streams
 
-import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
+import akka.stream.stage.{
+  GraphStage,
+  GraphStageLogicWithLogging,
+  InHandler,
+  OutHandler
+}
 import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
 import akka.util.ByteString
 
@@ -15,10 +20,12 @@ import akka.util.ByteString
  * completed. This allows downstream to complete and capture the expected
  * response from clamd.
  *
+ * @param filename String with the name of the file being processed
  * @param chunkSize Int specifying the desired max size of each chunk
  * @param maxBytes  Int specifying the max number of bytes to process
  */
 class ChunkAggregationStage(
+    val filename: String,
     val chunkSize: Int,
     val maxBytes: Int
 ) extends GraphStage[FlowShape[ByteString, ByteString]] {
@@ -30,9 +37,8 @@ class ChunkAggregationStage(
   override def shape = FlowShape(in, out)
 
   // scalastyle:off method.length
-  override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = {
-    new GraphStageLogic(shape) {
-
+  override def createLogic(attrs: Attributes): GraphStageLogicWithLogging = {
+    new GraphStageLogicWithLogging(shape) {
       private val rechunked     = ByteString.newBuilder
       private var chunks        = 0
       private var receivedBytes = 0L
@@ -77,6 +83,11 @@ class ChunkAggregationStage(
               else emit(out, ite.head)
             }
 
+            log.debug(
+              s"Finishing up chunk aggregation. Received $receivedBytes bytes" +
+                s" for file $filename"
+            )
+
             if (receivedBytes > 0L) completeStage()
             else failStage(ClammyException(CannotScanEmptyFile))
           }
@@ -84,7 +95,10 @@ class ChunkAggregationStage(
         }
       )
 
-      override def postStop(): Unit = rechunked.clear()
+      override def postStop(): Unit = {
+        log.debug(s"ChungAggregationStage for $filename has stopped")
+        rechunked.clear()
+      }
     }
   }
 

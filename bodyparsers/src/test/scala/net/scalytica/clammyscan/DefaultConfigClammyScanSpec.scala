@@ -1,7 +1,10 @@
 package net.scalytica.clammyscan
 
 import net.scalytica.clammyscan.streams.ClamProtocol
-import net.scalytica.clammyscan.streams.CannotScanEmptyFile
+import net.scalytica.clammyscan.streams.{
+  CannotScanEmptyFile,
+  FileEmptyOrMissing
+}
 import net.scalytica.test.{
   FlakyTests,
   TestAppContext,
@@ -10,6 +13,7 @@ import net.scalytica.test.{
 }
 import org.scalatest.tagobjects.Retryable
 import play.api.test.Helpers._
+import play.api.test.WsTestClient
 
 class DefaultConfigClammyScanSpec
     extends TestAppContext
@@ -22,7 +26,10 @@ class DefaultConfigClammyScanSpec
       "scan infected file and not persist the file" in {
         val requestBody = multipart(eicarZipFile, Some("application/zip"))
         val result =
-          post(TestRouterUris.ScanTmpMultiPart, Some(eicarZipFile.fname))(
+          post(
+            uri = TestRouterUris.MultipartScanOnly,
+            fname = Some(eicarZipFile.fname)
+          )(
             requestBody
           ).futureValue
 
@@ -34,9 +41,9 @@ class DefaultConfigClammyScanSpec
         val requestBody = multipart(cleanFile, Some("application/pdf"))
         val result =
           post(
-            TestRouterUris.ScanTmpMultiPart,
-            Some(cleanFile.fname),
-            Some("application/pdf")
+            uri = TestRouterUris.MultipartScanOnly,
+            fname = Some(cleanFile.fname),
+            ctype = Some("application/pdf")
           )(
             requestBody
           ).futureValue
@@ -44,20 +51,20 @@ class DefaultConfigClammyScanSpec
         result.status mustBe OK
       }
 
-      "fail scanning an empty multipart file" taggedAs Retryable in {
+      "fail scanning when multipart file is empty" in {
         val requestBody = multipart(emptyFile, Some("application/text"))
 
         val result =
           post(
-            TestRouterUris.ScanTmpMultiPart,
-            Some(emptyFile.fname),
-            Some("application/text")
+            uri = TestRouterUris.MultipartScanOnly,
+            fname = Some(emptyFile.fname),
+            ctype = Some("application/text")
           )(
             requestBody
           ).futureValue
 
         result.status mustBe BAD_REQUEST
-        result.body must include(CannotScanEmptyFile.message)
+        result.body must include(FileEmptyOrMissing.message)
       }
 
       // scalastyle:off line.size.limit
@@ -65,9 +72,9 @@ class DefaultConfigClammyScanSpec
         val requestBody = multipart(largeFile, Some("application/zip"))
         val result =
           post(
-            TestRouterUris.ScanTmpMultiPart,
-            Some(largeFile.fname),
-            Some("application/zip")
+            uri = TestRouterUris.MultipartScanOnly,
+            fname = Some(largeFile.fname),
+            ctype = Some("application/zip")
           )(
             requestBody
           ).futureValue
@@ -83,9 +90,9 @@ class DefaultConfigClammyScanSpec
         val requestBody = eicarZipFile.source
         val result =
           post(
-            TestRouterUris.ScanTmpDirect,
-            Some(eicarZipFile.fname),
-            Some("application/zip")
+            uri = TestRouterUris.DirectScanTmp,
+            fname = Some(eicarZipFile.fname),
+            ctype = Some("application/zip")
           )(
             requestBody
           ).futureValue
@@ -98,9 +105,9 @@ class DefaultConfigClammyScanSpec
         val requestBody = cleanFile.source
         val result =
           post(
-            TestRouterUris.ScanTmpDirect,
-            Some(cleanFile.fname),
-            Some("application/pdf")
+            uri = TestRouterUris.DirectScanTmp,
+            fname = Some(cleanFile.fname),
+            ctype = Some("application/pdf")
           )(
             requestBody
           ).futureValue
@@ -113,9 +120,9 @@ class DefaultConfigClammyScanSpec
 
         val result =
           post(
-            TestRouterUris.ScanTmpDirect,
-            Some(emptyFile.fname),
-            Some("application/text")
+            uri = TestRouterUris.DirectScanTmp,
+            fname = Some(emptyFile.fname),
+            ctype = Some("application/text")
           )(
             requestBody
           ).futureValue
@@ -129,9 +136,9 @@ class DefaultConfigClammyScanSpec
         val requestBody = largeFile.source
         val result =
           post(
-            TestRouterUris.ScanTmpDirect,
-            Some(largeFile.fname),
-            Some("application/zip")
+            uri = TestRouterUris.DirectScanTmp,
+            fname = Some(largeFile.fname),
+            ctype = Some("application/zip")
           )(
             requestBody
           ).futureValue
@@ -147,8 +154,8 @@ class DefaultConfigClammyScanSpec
         val requestBody = multipart(eicarFile, Some("application/txt"))
         val result =
           post(
-            TestRouterUris.ScanTmpMultiPart,
-            Some(eicarFile.fname)
+            uri = TestRouterUris.MultiPartScanTmp,
+            fname = Some(eicarFile.fname)
           )(
             requestBody
           ).futureValue
@@ -161,8 +168,8 @@ class DefaultConfigClammyScanSpec
         val requestBody = multipart(cleanFile, Some("application/pdf"))
         val result =
           post(
-            TestRouterUris.ScanTmpMultiPart,
-            Some(cleanFile.fname)
+            uri = TestRouterUris.MultiPartScanTmp,
+            fname = Some(cleanFile.fname)
           )(
             requestBody
           ).futureValue
@@ -176,9 +183,9 @@ class DefaultConfigClammyScanSpec
           multipart(cleanFile, Some("application/pdf"), Some(bad))
         val result =
           post(
-            TestRouterUris.ScanTmpMultiPart,
-            Some(bad),
-            Some("application/pdf")
+            uri = TestRouterUris.MultiPartScanTmp,
+            fname = Some(bad),
+            ctype = Some("application/pdf")
           )(
             requestBody
           ).futureValue
@@ -196,8 +203,8 @@ class DefaultConfigClammyScanSpec
         val requestBody = eicarFile.source
         val result =
           post(
-            TestRouterUris.ScanTmpDirect,
-            Some(eicarFile.fname)
+            uri = TestRouterUris.DirectScanTmp,
+            fname = Some(eicarFile.fname)
           )(
             requestBody
           ).futureValue
@@ -210,8 +217,8 @@ class DefaultConfigClammyScanSpec
         val requestBody = cleanFile.source
         val result =
           post(
-            TestRouterUris.ScanTmpDirect,
-            Some(cleanFile.fname)
+            uri = TestRouterUris.DirectScanTmp,
+            fname = Some(cleanFile.fname)
           )(
             requestBody
           ).futureValue
@@ -224,9 +231,9 @@ class DefaultConfigClammyScanSpec
         val requestBody = cleanFile.source
         val result =
           post(
-            TestRouterUris.ScanTmpDirect,
-            Some(bad),
-            Some("application/pdf")
+            uri = TestRouterUris.DirectScanTmp,
+            fname = Some(bad),
+            ctype = Some("application/pdf")
           )(
             requestBody
           ).futureValue
@@ -241,7 +248,7 @@ class DefaultConfigClammyScanSpec
     "executing commands" should {
 
       "respond to the ping command" in {
-        val res = wsUrl(TestRouterUris.Ping).get().futureValue
+        val res = WsTestClient.wsUrl(TestRouterUris.Ping).get().futureValue
 
         res.status mustBe OK
         res.contentType mustBe JSON
@@ -249,7 +256,7 @@ class DefaultConfigClammyScanSpec
       }
 
       "respond to the version command" in {
-        val res = wsUrl(TestRouterUris.Version).get().futureValue
+        val res = WsTestClient.wsUrl(TestRouterUris.Version).get().futureValue
 
         res.status mustBe OK
         res.contentType mustBe JSON
@@ -257,7 +264,7 @@ class DefaultConfigClammyScanSpec
       }
 
       "respond to the stats command" in {
-        val res = wsUrl(TestRouterUris.Stats).get().futureValue
+        val res = WsTestClient.wsUrl(TestRouterUris.Stats).get().futureValue
 
         res.status mustBe OK
         res.contentType mustBe JSON

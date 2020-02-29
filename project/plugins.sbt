@@ -1,29 +1,33 @@
 logLevel := Level.Warn
 
 resolvers ++= Seq(
-  Resolver.bintrayIvyRepo("sbt", "sbt-plugin-releases"),
-  Resolver.bintrayRepo("kpmeen", "sbt-plugins"),
-  Resolver.bintrayRepo("zalando", "maven"),
+//  Resolver.bintrayIvyRepo("sbt", "sbt-plugin-releases"),
+//  Resolver.bintrayRepo("zalando", "maven"),
+//  Resolver.typesafeRepo("releases"),
   Resolver.typesafeRepo("releases"),
+  Resolver.sonatypeRepo("releases"),
   // Remove below resolver once the following issues has been resolved:
   // https://issues.jboss.org/projects/JBINTER/issues/JBINTER-21
   "JBoss" at "https://repository.jboss.org/"
 )
 
 // The Play plugin
-addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.6.20")
+addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.8.1")
 
-// Dependency resolution
-addSbtPlugin("io.get-coursier" %% "sbt-coursier" % "1.0.3")
+// Dependency handling
+addSbtPlugin("com.timushev.sbt" % "sbt-updates" % "0.5.0")
 
 // Formatting and style checking
-addSbtPlugin("com.geirsson"   % "sbt-scalafmt"           % "1.5.1")
+addSbtPlugin("org.scalameta"  % "sbt-scalafmt"           % "2.2.0")
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0")
 
 // Code coverage
-addSbtPlugin("org.scoverage" %% "sbt-scoverage"       % "1.5.1")
-addSbtPlugin("com.codacy"    %% "sbt-codacy-coverage" % "1.3.15")
+addSbtPlugin("org.scoverage" %% "sbt-scoverage" % "1.6.0")
+
+// TODO: Codacy no longer supports the coverage reporter plugin. Alternative is
+//       to use the tool provided here:
+//          - https://github.com/codacy/codacy-coverage-reporter
 
 // Release management
-addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.9")
-addSbtPlugin("org.foundweekends" % "sbt-bintray" % "0.5.4")
+addSbtPlugin("com.github.gseitz" % "sbt-release" % "1.0.13")
+addSbtPlugin("org.foundweekends" % "sbt-bintray" % "0.5.6")

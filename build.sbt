@@ -28,6 +28,8 @@ statusClamd := { "./dockerClamAV.sh status" ! }
 
 name := """clammyscan"""
 
+releaseCrossBuild := true
+
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   inquireVersions,
@@ -42,15 +44,15 @@ releaseProcess := Seq[ReleaseStep](
   pushChanges // also checks that an upstream branch is properly configured
 )
 
-lazy val root =
-  (project in file("."))
-    .settings(NoPublish)
-    .aggregate(
-      sharedTesting,
-      streamsLib,
-      bodyParsers,
-      sample
-    )
+lazy val root = (project in file("."))
+  .settings(NoPublish)
+  .settings(crossScalaVersions := Nil)
+  .aggregate(
+    sharedTesting,
+    streamsLib,
+    bodyParsers,
+    sample
+  )
 
 lazy val sharedTesting = ClammyProject("shared-testing")
   .settings(NoPublish)
@@ -69,6 +71,12 @@ lazy val streamsLib = ClammyProject("clammyscan-streams", Some("streams-lib"))
     coverageFailOnMinimum := true
   )
   .settings(libraryDependencies ++= AkkaDeps.All ++ TestingDeps.AllNoPlay)
+  .settings(
+    libraryDependencies ++= Seq(
+      LoggingDeps.Slf4jApi,
+      LoggingDeps.Logback % Test
+    )
+  )
   .settings(BintrayPublish: _*)
   .dependsOn(sharedTesting % Test)
 
@@ -85,15 +93,16 @@ lazy val bodyParsers = ClammyProject("clammyscan", Some("bodyparsers"))
 
 lazy val sample = ClammyProject("sample")
   .enablePlugins(PlayScala)
+  .settings(NoPublish)
   .settings(
+    coverageEnabled := false,
     routesGenerator := InjectedRoutesGenerator,
     RoutesKeys.routesImport := Seq.empty
   )
-  .settings(coverageEnabled := false)
   .settings(resolvers += Resolver.mavenLocal)
-  .settings(NoPublish)
   .settings(
     libraryDependencies ++= Seq(
+      PlayImport.akkaHttpServer,
       PlayImport.guice,
       PlayImport.ws,
       PlayImport.ehcache,

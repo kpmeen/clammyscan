@@ -1,11 +1,12 @@
 package net.scalytica.clammyscan.streams
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.TestKit
 import com.typesafe.config.ConfigFactory
 import net.scalytica.clammyscan.streams.ClamProtocol.MaxSizeExceededResponse
 import net.scalytica.test.{FlakyTests, TestResources}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest._
 import org.scalatest.tagobjects.Retryable
 
@@ -20,16 +21,30 @@ class ClamIOSpec
     with FlakyTests
     with TestResources {
 
-  implicit val sys: ActorSystem       = system
-  implicit val mat: ActorMaterializer = ActorMaterializer()
+  implicit val sys: ActorSystem  = system
+  implicit val mat: Materializer = Materializer(sys)
 
   override def afterAll(): Unit = {
     mat.shutdown()
     TestKit.shutdownActorSystem(system)
   }
 
+  val akkaLoggingConf = {
+    // Using Java Map instead of CollectionConverters to ensure compatibility
+    // with Scala 2.12
+    val m = new java.util.HashMap[String, Any]()
+    m.put("akka.loggers", """["akka.event.slf4j.Slf4jLogger"]""")
+    m.put("akka.loglevel", "DEBUG")
+    m.put("akka.logging-filter", "akka.event.slf4j.Slf4jLoggingFilter")
+    m
+  }
+
   val conf = {
-    val c = ConfigFactory.defaultReference()
+    val c = ConfigFactory
+      .defaultReference()
+      .withFallback(ConfigFactory.parseMap(akkaLoggingConf))
+      .withFallback(sys.settings.config)
+      .resolve()
     new ClamConfig(c)
   }
 

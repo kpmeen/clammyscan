@@ -9,6 +9,7 @@ import akka.stream.scaladsl.{Tcp, _}
 import akka.util.ByteString
 import net.scalytica.clammyscan.streams.ClamProtocol._
 import net.scalytica.clammyscan.streams.UnsignedInt._
+import org.slf4j.LoggerFactory
 
 import scala.collection.immutable
 import scala.concurrent.Future
@@ -33,6 +34,8 @@ class ClamIO(
     maxBytes: Int
 ) {
 
+  private[this] val logger = LoggerFactory.getLogger(getClass)
+
   private[this] val inetAddr = new InetSocketAddress(host, port)
 
   /**
@@ -43,7 +46,9 @@ class ClamIO(
    */
   private[this] def connection(
       implicit as: ActorSystem
-  ): Flow[ByteString, ByteString, Future[Tcp.OutgoingConnection]] =
+  ): Flow[ByteString, ByteString, Future[Tcp.OutgoingConnection]] = {
+    logger.debug(s"Setting up outgoing TCP connection to clamd at $host:$port")
+
     Tcp()
       .outgoingConnection(
         remoteAddress = inetAddr,
@@ -51,9 +56,11 @@ class ClamIO(
         options = Vector(SendBufferSize(ClamIO.MaxChunkSize))
       )
       .recover {
-        case _: StreamTcpException =>
+        case ste: StreamTcpException =>
+          logger.error("Could not connect to clamd.", ste)
           throw ClammyException(CouldNotConnect)
       }
+  }
 
   /**
    * Flow that builds chunks of expected size from the incoming elements. Also
@@ -66,8 +73,12 @@ class ClamIO(
    * is received, this implementation is good enough, and will not process
    * chunks needlessly.
    */
-  private[this] def chunker =
-    Flow.fromGraph(new ChunkAggregationStage(ClamIO.MaxChunkSize, maxBytes))
+  private[this] def chunker(filename: String) = {
+    logger.debug(s"Setting up ChunkAggregationStage for $filename")
+    Flow.fromGraph(
+      new ChunkAggregationStage(filename: String, ClamIO.MaxChunkSize, maxBytes)
+    )
+  }
 
   /**
    * The ClamAV protocol is very specific. This Flow aims to handle that.
@@ -78,7 +89,8 @@ class ClamIO(
    * a sequence of 4 bytes with the length of the following chunk as an
    * unsigned integer.
    */
-  private[this] def stream =
+  private[this] def stream = {
+    logger.debug(s"Preparing connection stream to clamd at $host:$port...")
     Flow[ByteString]
       .statefulMapConcat { () =>
         var commandInitiated: Boolean = false
@@ -103,6 +115,7 @@ class ClamIO(
         // Append the stream completed bytes to tell clamd the end is reached.
         Source.single(StreamCompleted)
       }
+  }
 
   /**
    * Sink implementation that yields a ScanResponse when it's completed.
@@ -126,28 +139,34 @@ class ClamIO(
    * @param filename the name of the file to be scanned
    * @return a complete `ClamSink`
    */
-  def scan(filename: String)(implicit s: ActorSystem): ClamSink =
-    (chunker via stream via connection).toMat(sink)(Keep.right)
+  def scan(filename: String)(implicit s: ActorSystem): ClamSink = {
+    logger.debug(s"Setting up clamd scan for $filename")
+    (chunker(filename) via stream via connection).toMat(sink)(Keep.right)
+  }
 
   /**
    * Sends a PING command to clamd, expecting a PONG in response
    */
-  def ping(implicit s: ActorSystem, m: Materializer): Future[String] =
+  def ping(implicit s: ActorSystem, m: Materializer): Future[String] = {
+    logger.debug("Sending ping command to clamd")
     execClamCommand(Ping)
+  }
 
   /**
    * Ask clamd for the version string
    */
-  def version(implicit s: ActorSystem, m: Materializer): Future[String] =
+  def version(implicit s: ActorSystem, m: Materializer): Future[String] = {
+    logger.debug("Sending ping version to clamd")
     execClamCommand(Version)
+  }
 
   /**
    * Ask clamd for its internal stats
    */
-  def stats(
-      implicit s: ActorSystem,
-      m: Materializer
-  ): Future[String] = execClamCommand(Stats)
+  def stats(implicit s: ActorSystem, m: Materializer): Future[String] = {
+    logger.debug("Sending ping stats to clamd")
+    execClamCommand(Stats)
+  }
 
 }
 

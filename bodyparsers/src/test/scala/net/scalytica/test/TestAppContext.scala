@@ -11,10 +11,10 @@ import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.Files.TemporaryFileCreator
-import play.api.libs.ws.{BodyWritable, WSClient, WSResponse}
+import play.api.libs.ws.{BodyWritable, WSResponse}
 import play.api.mvc.MultipartFormData.FilePart
 import play.api.mvc.Result
-import play.api.test.Writeables
+import play.api.test.{Writeables, WsTestClient}
 import play.api.{Application, Configuration}
 
 import scala.concurrent.duration._
@@ -32,15 +32,20 @@ trait TestAppContext
   lazy val additionalConfig: Map[String, AnyRef] = Map.empty
 
   lazy val configuration: Configuration =
-    Configuration(ConfigFactory.load()) ++ Configuration(
-      "play.http.router"                 -> "net.scalytica.test.TestRouter",
-      "play.http.errorHandler"           -> "net.scalytica.test.TestErrorHandler",
-      "akka.jvm-exit-on-fatal-error"     -> "false",
-      "akka.loglevel"                    -> "DEBUG",
-      "akka.loggers"                     -> Seq("akka.event.slf4j.Slf4jLogger"),
-      "akka.logging-filter"              -> "akka.event.slf4j.Slf4jLoggingFilter",
-      "clammyscan.clamd.streamMaxLength" -> "2M"
-    ) ++ Configuration(additionalConfig.toSeq: _*)
+    Configuration(additionalConfig.toSeq: _*)
+      .withFallback(
+        Configuration(
+          "play.server.provider"             -> "play.core.server.AkkaHttpServerProvider",
+          "play.http.router"                 -> "net.scalytica.test.TestRouter",
+          "play.http.errorHandler"           -> "net.scalytica.test.TestErrorHandler",
+          "akka.jvm-exit-on-fatal-error"     -> "false",
+          "akka.loglevel"                    -> "DEBUG",
+          "akka.loggers"                     -> Seq("akka.event.slf4j.Slf4jLogger"),
+          "akka.logging-filter"              -> "akka.event.slf4j.Slf4jLoggingFilter",
+          "clammyscan.clamd.streamMaxLength" -> "2M"
+        )
+      )
+      .withFallback(Configuration(ConfigFactory.load()))
 
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(
     timeout = Span(50000L, Millis),
@@ -53,9 +58,10 @@ trait TestAppContext
 
   lazy val tmpFileCreator = app.injector.instanceOf[TemporaryFileCreator]
 
-  implicit lazy val mat: Materializer  = app.materializer
-  implicit val ec: ExecutionContext    = scala.concurrent.ExecutionContext.global
-  implicit lazy val wsClient: WSClient = app.injector.instanceOf[WSClient]
+  implicit lazy val mat: Materializer = app.materializer
+  implicit val ec: ExecutionContext   = scala.concurrent.ExecutionContext.global
+
+  implicit lazy val appPort: Int = port
 
   def multipart(
       fileSource: FileSource,
@@ -69,7 +75,7 @@ trait TestAppContext
       ref = fileSource.source
     )
 
-    Source(filePart :: List())
+    Source(List(filePart))
   }
 
   def queryParams(
@@ -107,7 +113,8 @@ trait TestAppContext
       fname: Option[String] = None,
       ctype: Option[String] = None
   )(body: A)(implicit bw: BodyWritable[A]): Future[WSResponse] = {
-    wsUrl(uri)
+    WsTestClient
+      .wsUrl(uri)
       .withQueryStringParameters(queryParams(fname, ctype): _*)
       .post(body)
   }

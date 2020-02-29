@@ -9,13 +9,13 @@
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
       <encoder>
         <pattern>
-          %coloredLevel %logger{15} - %message%n%xException{5}
+          %coloredLevel %logger{15} - %message%n%xException{25}
         </pattern>
       </encoder>
     </appender>
   </appender>
 
-  <logger name="net.scalytica.clammyscan" level="OFF" additivity="false" />
+  <logger name="net.scalytica" level="OFF" />
 
   <!-- Root loggers catch all other events that are not explicitly handled-->
   <root level="OFF">

@@ -99,7 +99,7 @@ trait TestActions {
     }
   }
 
-  def scanOnlyAction(
+  def multipartScanOnlyAction(
       parser: ClammyScanParser
   )(implicit ec: ExecutionContext): EssentialAction = {
     multipartScanner[Unit](parser.scanOnly)(scanOnlyResHandler)
@@ -111,7 +111,7 @@ trait TestActions {
     directScanner[Unit](parser.directScanOnly)(scanOnlyResHandler)
   }
 
-  def scanTmpAction(
+  def multipartScanTmpAction(
       parser: ClammyScanParser
   )(implicit ec: ExecutionContext): EssentialAction = {
     multipartScanner[TemporaryFile](parser.scanWithTmpFile) { sb =>
