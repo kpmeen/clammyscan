@@ -28,17 +28,17 @@ statusClamd := { "./dockerClamAV.sh status" ! }
 
 name := """clammyscan"""
 
-releaseCrossBuild := true
+releaseCrossBuild := false // See https://www.scala-sbt.org/1.x/docs/Cross-Build.html#Note+about+sbt-release
 
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   inquireVersions,
   runClean,
-  runTest,
+  releaseStepCommandAndRemaining("+test"), // See https://www.scala-sbt.org/1.x/docs/Cross-Build.html#Note+about+sbt-release
   setReleaseVersion,
   commitReleaseVersion, // performs the initial git checks
   tagRelease,
-  publishArtifacts, // checks whether `publishTo` is properly set up
+  releaseStepCommandAndRemaining("+publish"), // See https://www.scala-sbt.org/1.x/docs/Cross-Build.html#Note+about+sbt-release
   setNextVersion,
   commitNextVersion,
   pushChanges // also checks that an upstream branch is properly configured
