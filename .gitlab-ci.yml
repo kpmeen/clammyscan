@@ -48,6 +48,8 @@ run test suites for 2.13:
   <<: *test_settings
   script:
     # Build the project
-    - sbt ++2.13.1 clean coverage test coverageReport
+    - sbt ++2.13.1 clean test
+    # sbt-scoverage is not yet compatible with 2.13
+    #- sbt ++2.13.1 clean coverage test coverageReport
     #- sbt coverageAggregate codacyCoverage
-    - sbt ++2.13.1 coverageAggregate
+    #- sbt ++2.13.1 coverageAggregate
