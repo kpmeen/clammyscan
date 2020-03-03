@@ -1,6 +1,7 @@
 package net.scalytica.clammyscan.streams
 
-import org.scalatest.Matchers.fail
+import matchers.should.Matchers.fail
+import org.scalatest.matchers
 
 object TestHelpers {
 

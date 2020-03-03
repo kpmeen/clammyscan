@@ -12,10 +12,12 @@ import org.scalatest.tagobjects.Retryable
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class ClamIOSpec
     extends TestKit(ActorSystem("clamio-test-system"))
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
     with BeforeAndAfterAll
     with FlakyTests
