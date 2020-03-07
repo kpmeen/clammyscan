@@ -22,7 +22,6 @@ class Application @Inject() (
     clammyScan: ClammyScan,
     val controllerComponents: ControllerComponents
 ) extends BaseController {
-
   val logger = Logger(this.getClass)
 
   logger.info("Temp directory is: " + System.getProperty("java.io.tmpdir"))
@@ -109,5 +108,4 @@ class Application @Inject() (
   def clamVersion = Action.async { _ =>
     clammyScan.version.map(v => Ok(Json.obj("version" -> v)))
   }
-
 }

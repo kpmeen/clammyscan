@@ -47,7 +47,6 @@ class ChunkAggregationStage(
         in = in,
         out = out,
         handler = new InHandler with OutHandler {
-
           private[this] def processChunk(chunk: ByteString): Unit = {
             receivedBytes = receivedBytes + chunk.size
             rechunked ++= chunk
@@ -91,7 +90,6 @@ class ChunkAggregationStage(
             if (receivedBytes > 0L) completeStage()
             else failStage(ClammyException(CannotScanEmptyFile))
           }
-
         }
       )
 
@@ -103,5 +101,4 @@ class ChunkAggregationStage(
   }
 
   // scalastyle:on method.length
-
 }

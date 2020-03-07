@@ -7,7 +7,6 @@ import scala.concurrent.Future
 
 // $COVERAGE-OFF$
 package object streams {
-
   type ClamSink      = Sink[ByteString, Future[ScanResponse]]
   type SaveSink[A]   = Sink[ByteString, Future[Option[A]]]
   type ToSaveSink[A] = (String, Option[String]) => SaveSink[A]
