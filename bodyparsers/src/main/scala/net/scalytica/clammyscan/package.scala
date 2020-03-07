@@ -5,7 +5,6 @@ import play.api.mvc.{BodyParser, MultipartFormData}
 
 // $COVERAGE-OFF$
 package object clammyscan {
-
   type ClamMultipart[A] = MultipartFormData[ScannedBody[A]]
 
   type ClamParser[A] = BodyParser[ClamMultipart[A]]
@@ -14,6 +13,5 @@ package object clammyscan {
 
   private[clammyscan] val UnhandledException =
     "An unhandled exception was caught"
-
 }
 // $COVERAGE-ON$

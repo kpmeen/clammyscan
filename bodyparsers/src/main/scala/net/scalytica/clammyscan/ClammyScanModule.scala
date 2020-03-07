@@ -12,5 +12,4 @@ class ClammyScanModule extends Module {
       environment: Environment,
       configuration: Configuration
   ): Seq[Binding[ClammyScan]] = Seq(bind[ClammyScan].to[ClammyScanParser])
-
 }

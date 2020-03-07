@@ -15,7 +15,6 @@ import net.scalytica.clammyscan.streams.ClamProtocol._
  */
 class ClamResponseStage
     extends GraphStage[FlowShape[ByteString, ScanResponse]] {
-
   val in: Inlet[ByteString]     = Inlet[ByteString]("ClamResponse.in")
   val out: Outlet[ScanResponse] = Outlet[ScanResponse]("ClamResponse.out")
 
@@ -23,7 +22,6 @@ class ClamResponseStage
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = {
     new GraphStageLogic(shape) {
-
       case class ScanState(result: String = "") {
         def append(chunk: ByteString): ScanState = {
           copy(s"$result${chunk.utf8String}")
@@ -38,7 +36,6 @@ class ClamResponseStage
         in = in,
         out = out,
         handler = new InHandler with OutHandler {
-
           override def onPush(): Unit = {
             val c = grab(in)
             state = state.append(c)
@@ -61,12 +58,10 @@ class ClamResponseStage
                 completeStage()
             }
           }
-
         }
       )
 
       override def postStop(): Unit = state = ScanState()
     }
   }
-
 }

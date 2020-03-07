@@ -33,7 +33,6 @@ class ClamIO(
     timeout: Duration,
     maxBytes: Int
 ) {
-
   private[this] val logger = LoggerFactory.getLogger(getClass)
 
   private[this] val inetAddr = new InetSocketAddress(host, port)
@@ -167,11 +166,9 @@ class ClamIO(
     logger.debug("Sending ping stats to clamd")
     execClamCommand(Stats)
   }
-
 }
 
 object ClamIO {
-
   val MaxChunkSize: Int = 262144
 
   def apply(

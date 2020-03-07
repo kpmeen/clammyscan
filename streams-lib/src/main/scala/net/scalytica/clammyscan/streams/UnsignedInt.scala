@@ -19,5 +19,4 @@ object UnsignedInt {
       ((v >>> 0) & 0xFF).toByte
     )
   )
-
 }

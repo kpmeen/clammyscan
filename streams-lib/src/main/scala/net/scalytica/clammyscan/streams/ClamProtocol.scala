@@ -4,7 +4,6 @@ import akka.util.ByteString
 import net.scalytica.clammyscan.streams.UnsignedInt.unsignedInt
 
 object ClamProtocol {
-
   // ----------
   // Some String based constants with values of different response messages
   // that can be expected from clamd.
@@ -41,7 +40,6 @@ object ClamProtocol {
     }
 
     def isCommand(bs: ByteString): Boolean = byteStringToCmd(bs).nonEmpty
-
   }
 
   /**
@@ -71,5 +69,4 @@ object ClamProtocol {
   case object Version extends Command {
     override val cmd = ByteString.fromString("VERSION")
   }
-
 }

@@ -69,7 +69,6 @@ trait ClammyScan {
   def version(implicit exec: ExecutionContext): Future[String]
 
   def stats(implicit exec: ExecutionContext): Future[String]
-
 }
 
 abstract class BaseScanParser(
@@ -77,7 +76,6 @@ abstract class BaseScanParser(
     mat: Materializer,
     config: Configuration
 ) extends ClammyScan {
-
   implicit val system: ActorSystem        = sys
   implicit val materializer: Materializer = mat
 
@@ -242,7 +240,6 @@ abstract class BaseScanParser(
     cbpLogger.trace("Received stats call...")
     ClamIO(clamConfig).stats
   }
-
 }
 
 /**
@@ -270,7 +267,6 @@ class ClammyScanParser @Inject() (
           Accumulator(comb).map { ref =>
             MultipartFormData.FilePart(partName, filename, contentType, ref)
           }
-
       }
       .validateM { data: ClamMultipart[A] =>
         data.files.headOption
@@ -285,7 +281,6 @@ class ClammyScanParser @Inject() (
 
               case FileOk =>
                 Future.successful(Right(data))
-
             }
           }
           .getOrElse {
@@ -368,5 +363,4 @@ class ClammyScanParser @Inject() (
     },
     remove = _ => cbpLogger.debug("Only scanning, no file to remove")
   )
-
 }

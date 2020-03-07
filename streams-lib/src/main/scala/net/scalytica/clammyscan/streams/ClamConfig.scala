@@ -19,7 +19,6 @@ trait ConfigKeys {
 }
 
 class ClamConfig(config: Config) extends ConfigKeys {
-
   private val DefaultPortNumber      = 3310
   private val DefaultTimeout         = 5 seconds
   private val DefaultMaxStreamLength = 2097152
@@ -90,5 +89,4 @@ class ClamConfig(config: Config) extends ConfigKeys {
    */
   lazy val validFilenameRegex: Option[String] =
     Option(config.getString(filenameRegex)).orElse(Option(filenameRegex))
-
 }

@@ -17,7 +17,6 @@ object ScanResponse {
     else if (InfectedResponse.findFirstIn(s).nonEmpty) VirusFound(s)
     else ScanError(IncompleteResponse)
   }
-
 }
 
 sealed abstract class ClamError extends ScanResponse {

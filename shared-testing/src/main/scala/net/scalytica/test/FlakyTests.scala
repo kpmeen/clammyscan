@@ -22,5 +22,4 @@ trait FlakyTests extends Retries { self: TestSuite =>
         other
     }
   }
-
 }
