@@ -7,7 +7,8 @@ import com.typesafe.config.ConfigFactory
 import net.scalytica.clammyscan.streams.ClamProtocol.MaxSizeExceededResponse
 import net.scalytica.test.{FlakyTests, TestResources}
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.tagobjects.Retryable
 
 import scala.concurrent.Await
@@ -15,7 +16,7 @@ import scala.concurrent.duration._
 
 class ClamIOSpec
     extends TestKit(ActorSystem("clamio-test-system"))
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
     with BeforeAndAfterAll
     with FlakyTests

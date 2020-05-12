@@ -2,9 +2,10 @@ package net.scalytica.clammyscan.streams
 
 import akka.util.ByteString
 import net.scalytica.clammyscan.streams.ClamProtocol.Command
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class ClamProtocolSpec extends WordSpec with Matchers {
+class ClamProtocolSpec extends AnyWordSpecLike with Matchers {
 
   "A ByteString" should {
     "match an Instream command" in {
