@@ -1,10 +1,16 @@
 ######################################################################
 # GitLab CI build script for the ClammyScan project                   #
 ######################################################################
+include:
+  - template: SAST.gitlab-ci.yml
+
 variables:
   DOCKER_DRIVER: overlay
   # Setting specific folder for sbt-coursier to cache artifacts
   COURSIER_CACHE: "/root/cache/coursier"
+  # Static Application Security Testing properties
+  SAST_JAVA_VERSION: 11
+  SAST_EXCLUDED_PATHS: target
 
 cache:
   untracked: true
@@ -39,16 +45,16 @@ run test suites for 2.12:
   <<: *test_settings
   script:
     # Build the project
-    - sbt ++2.12.10 clean coverage test coverageReport
+    - sbt ++2.12.11 clean coverage test coverageReport
     #- sbt coverageAggregate codacyCoverage
-    - sbt ++2.12.10 coverageAggregate
+    - sbt ++2.12.11 coverageAggregate
 
 run test suites for 2.13:
   image: registry.gitlab.com/kpmeen/docker-scala-sbt:scala_2.13_jdk11
   <<: *test_settings
   script:
     # Build the project
-    - sbt ++2.13.1 clean test
+    - sbt ++2.13.2 clean test
     # sbt-scoverage is not yet compatible with 2.13
     #- sbt ++2.13.1 clean coverage test coverageReport
     #- sbt coverageAggregate codacyCoverage
