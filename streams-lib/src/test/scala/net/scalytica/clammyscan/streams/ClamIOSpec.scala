@@ -57,7 +57,7 @@ class ClamIOSpec
       "result in clamav finding a virus" in {
         val res = Await.result(
           eicarStrSource runWith clamIO.scan("test-file"),
-          10 seconds
+          20 seconds
         )
         res shouldBe a[VirusFound]
       }
@@ -67,7 +67,7 @@ class ClamIOSpec
       "result in a successful scan without errors" in {
         val res = Await.result(
           cleanFile.source runWith clamIO.scan(cleanFile.fname),
-          10 seconds
+          20 seconds
         )
         res shouldBe FileOk
       }
@@ -77,7 +77,7 @@ class ClamIOSpec
       "result in a virus being found" in {
         val res = Await.result(
           eicarZipFile.source runWith clamIO.scan(eicarZipFile.fname),
-          10 seconds
+          20 seconds
         )
         res shouldBe a[VirusFound]
       }
@@ -88,7 +88,7 @@ class ClamIOSpec
         val res =
           Await.result(
             largeFile.source runWith clamIO.scan(largeFile.fname),
-            10 seconds
+            20 seconds
           )
 
         res match {
@@ -101,19 +101,19 @@ class ClamIOSpec
 
     "receives a PING command" should {
       "result in a PONG" in {
-        Await.result(clamIO.ping, 10 seconds) === "PONG"
+        Await.result(clamIO.ping, 20 seconds) === "PONG"
       }
     }
 
     "receives a VERSION command" should {
       "result in the clamd version string" in {
-        Await.result(clamIO.version, 10 seconds) should startWith("ClamAV")
+        Await.result(clamIO.version, 20 seconds) should startWith("ClamAV")
       }
     }
 
     "receives a STATUS command" should {
       "result in the clamd status message" in {
-        val res = Await.result(clamIO.stats, 10 seconds)
+        val res = Await.result(clamIO.stats, 20 seconds)
         res should include("POOLS")
         res should include("STATE: VALID PRIMARY")
         res should include("THREADS")
