@@ -11,12 +11,13 @@ object UnsignedInt {
    * @param v The integer value to convert
    * @return ByteString of 4 byte unsigned integer in network byte order.
    */
-  private[clammyscan] def unsignedInt(v: Int) = ByteString.fromArray(
-    Array[Byte](
-      ((v >>> 24) & 0xFF).toByte,
-      ((v >>> 16) & 0xFF).toByte,
-      ((v >>> 8) & 0xFF).toByte,
-      ((v >>> 0) & 0xFF).toByte
+  private[clammyscan] def unsignedInt(v: Int) =
+    ByteString.fromArray(
+      Array[Byte](
+        ((v >>> 24) & 0xff).toByte,
+        ((v >>> 16) & 0xff).toByte,
+        ((v >>> 8) & 0xff).toByte,
+        ((v >>> 0) & 0xff).toByte
+      )
     )
-  )
 }

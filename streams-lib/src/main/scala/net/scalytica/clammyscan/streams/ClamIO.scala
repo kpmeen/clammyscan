@@ -43,8 +43,8 @@ class ClamIO(
    * @param as ActorSystem to run the connection on.
    * @return a Future of a TCP Connection Flow
    */
-  private[this] def connection(
-      implicit as: ActorSystem
+  private[this] def connection(implicit
+      as: ActorSystem
   ): Flow[ByteString, ByteString, Future[Tcp.OutgoingConnection]] = {
     logger.debug(s"Setting up outgoing TCP connection to clamd at $host:$port")
 
@@ -125,12 +125,13 @@ class ClamIO(
     Flow.fromGraph(new ClamResponseStage).toMat(Sink.head)(Keep.right)
 
   // Helper for executing general commands against clamd
-  private[this] def execClamCommand(command: Command)(
-      implicit s: ActorSystem,
+  private[this] def execClamCommand(command: Command)(implicit
+      s: ActorSystem,
       m: Materializer
   ) =
-    (Source.single(command.cmd) via connection)
-      .runFold[String]("")((state, chunk) => s"$state${chunk.utf8String}")
+    (Source.single(command.cmd) via connection).runFold[String]("")(
+      (state, chunk) => s"$state${chunk.utf8String}"
+    )
 
   /**
    * The method setting up a `ClamSink` complete with source and TCP connection.
