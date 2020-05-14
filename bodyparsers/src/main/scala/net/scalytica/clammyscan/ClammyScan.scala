@@ -44,8 +44,8 @@ trait ClammyScan {
   /**
    * Scans file for virus and writes to a temporary file.
    */
-  def scanWithTmpFile(
-      implicit exec: ExecutionContext
+  def scanWithTmpFile(implicit
+      exec: ExecutionContext
   ): ClamParser[TemporaryFile]
 
   /**
@@ -58,8 +58,8 @@ trait ClammyScan {
       remove: A => Unit
   )(implicit exec: ExecutionContext): ChunkedClamParser[A]
 
-  def directScanWithTmpFile(
-      implicit exec: ExecutionContext
+  def directScanWithTmpFile(implicit
+      exec: ExecutionContext
   ): ChunkedClamParser[TemporaryFile]
 
   def directScanOnly(implicit exec: ExecutionContext): ChunkedClamParser[Unit]
@@ -86,12 +86,11 @@ abstract class BaseScanParser(
    * defined in application.conf.
    */
   protected def fileNameValid(filename: String): Boolean =
-    clamConfig.validFilenameRegex.forall(
-      regex =>
-        regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
-          case Some(_) => false
-          case None    => true
-        }
+    clamConfig.validFilenameRegex.forall(regex =>
+      regex.r.findFirstMatchIn(decode(filename, Codec.utf_8.charset)) match {
+        case Some(_) => false
+        case None    => true
+      }
     )
 
   /**
@@ -155,8 +154,8 @@ abstract class BaseScanParser(
   protected def broadcastGraph[A](
       c: ClamSink,
       s: SaveSink[A]
-  )(
-      implicit exec: ExecutionContext
+  )(implicit
+      exec: ExecutionContext
   ): Sink[ByteString, Future[ScannedBody[A]]] = {
     Sink
       .fromGraph[ByteString, (Future[ScanResponse], Future[Option[A]])] {
@@ -294,18 +293,19 @@ class ClammyScanParser @Inject() (
       }
   }
 
-  def scanWithTmpFile(
-      implicit exec: ExecutionContext
-  ): ClamParser[TemporaryFile] = scan[TemporaryFile](
-    save = { (_, _) =>
-      val tf = tempFileCreator.create("multipartBody", "scanWithTempFile")
-      FileIO.toPath(tf.path).mapMaterializedValue(_.map(_ => Option(tf)))
-    },
-    remove = { tmpFile =>
-      val status = tmpFile.delete()
-      cbpLogger.trace(s"Temporary file delete: $status")
-    }
-  )
+  def scanWithTmpFile(implicit
+      exec: ExecutionContext
+  ): ClamParser[TemporaryFile] =
+    scan[TemporaryFile](
+      save = { (_, _) =>
+        val tf = tempFileCreator.create("multipartBody", "scanWithTempFile")
+        FileIO.toPath(tf.path).mapMaterializedValue(_.map(_ => Option(tf)))
+      },
+      remove = { tmpFile =>
+        val status = tmpFile.delete()
+        cbpLogger.trace(s"Temporary file delete: $status")
+      }
+    )
 
   def scanOnly(implicit ec: ExecutionContext): ClamParser[Unit] = {
     cbpLogger.trace("Setting up file scanner...")
@@ -322,45 +322,48 @@ class ClammyScanParser @Inject() (
   def directScan[A](
       save: ToSaveSink[A],
       remove: A => Unit
-  )(implicit exec: ExecutionContext): ChunkedClamParser[A] = BodyParser { rh =>
-    val fileName         = rh.getQueryString("filename").getOrElse("no_name")
-    val maybeContentType = rh.getQueryString("contentType")
+  )(implicit exec: ExecutionContext): ChunkedClamParser[A] =
+    BodyParser { rh =>
+      val fileName         = rh.getQueryString("filename").getOrElse("no_name")
+      val maybeContentType = rh.getQueryString("contentType")
 
-    val theSinks = sinks(fileName, maybeContentType)(save)
-    val comb     = broadcastGraph(theSinks._1, theSinks._2)
+      val theSinks = sinks(fileName, maybeContentType)(save)
+      val comb     = broadcastGraph(theSinks._1, theSinks._2)
 
-    Accumulator(comb).map { sb =>
-      sb.scanResponse match {
-        case FileOk => Right(sb)
-        case e      => handleError(sb, e)(sb.maybeRef.foreach(f => remove(f)))
+      Accumulator(comb).map { sb =>
+        sb.scanResponse match {
+          case FileOk => Right(sb)
+          case e      => handleError(sb, e)(sb.maybeRef.foreach(f => remove(f)))
+        }
       }
     }
-  }
 
-  def directScanWithTmpFile(
-      implicit exec: ExecutionContext
-  ): ChunkedClamParser[TemporaryFile] = directScan[TemporaryFile](
-    save = (_, _) => {
-      val tempFile = tempFileCreator.create("requestBody", "asTemporaryFile")
-      val s = StreamConverters
-        .fromOutputStream(() => Files.newOutputStream(tempFile.toPath))
-        .mapMaterializedValue(_.map(_ => Option(tempFile)))
-      s
-    },
-    remove = { tmpFile =>
-      val status = tmpFile.delete()
-      cbpLogger.trace(s"Temporary file delete: $status")
-    }
-  )
+  def directScanWithTmpFile(implicit
+      exec: ExecutionContext
+  ): ChunkedClamParser[TemporaryFile] =
+    directScan[TemporaryFile](
+      save = (_, _) => {
+        val tempFile = tempFileCreator.create("requestBody", "asTemporaryFile")
+        val s = StreamConverters
+          .fromOutputStream(() => Files.newOutputStream(tempFile.toPath))
+          .mapMaterializedValue(_.map(_ => Option(tempFile)))
+        s
+      },
+      remove = { tmpFile =>
+        val status = tmpFile.delete()
+        cbpLogger.trace(s"Temporary file delete: $status")
+      }
+    )
 
-  def directScanOnly(
-      implicit exec: ExecutionContext
-  ): ChunkedClamParser[Unit] = directScan[Unit](
-    save = (_, _) => {
-      Sink
-        .cancelled[ByteString]
-        .mapMaterializedValue(_ => Future.successful(None))
-    },
-    remove = _ => cbpLogger.debug("Only scanning, no file to remove")
-  )
+  def directScanOnly(implicit
+      exec: ExecutionContext
+  ): ChunkedClamParser[Unit] =
+    directScan[Unit](
+      save = (_, _) => {
+        Sink
+          .cancelled[ByteString]
+          .mapMaterializedValue(_ => Future.successful(None))
+      },
+      remove = _ => cbpLogger.debug("Only scanning, no file to remove")
+    )
 }
