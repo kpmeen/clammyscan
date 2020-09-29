@@ -54,10 +54,9 @@ class ClamIO(
         connectTimeout = timeout,
         options = Vector(SendBufferSize(ClamIO.MaxChunkSize))
       )
-      .recover {
-        case ste: StreamTcpException =>
-          logger.error("Could not connect to clamd.", ste)
-          throw ClammyException(CouldNotConnect)
+      .recover { case ste: StreamTcpException =>
+        logger.error("Could not connect to clamd.", ste)
+        throw ClammyException(CouldNotConnect)
       }
   }
 
