@@ -85,7 +85,6 @@ class ClamConfig(config: Config) extends ConfigKeys {
    * <code>
    * (.[\"\*\\\>\<\?\/\:\|].)|(.[\.]?.[\.]$)|(.*[ ]+$)
    * </code>
-   *
    */
   lazy val validFilenameRegex: Option[String] =
     Option(config.getString(filenameRegex)).orElse(Option(filenameRegex))
