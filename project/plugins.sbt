@@ -12,7 +12,7 @@ resolvers ++= Seq(
 )
 
 // The Play plugin
-addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.8.1")
+addSbtPlugin("com.typesafe.play" % "sbt-plugin" % "2.8.7")
 
 // Dependency handling
 addSbtPlugin("com.timushev.sbt" % "sbt-updates" % "0.5.0")
