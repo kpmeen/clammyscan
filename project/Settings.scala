@@ -46,7 +46,7 @@ object Settings {
   )
 
   lazy val scala212               = "2.12.11"
-  lazy val scala213               = "2.13.2"
+  lazy val scala213               = "2.13.5"
   lazy val supportedScalaVersions = List(scala213, scala212)
 
   val ScalaVersion = scala213
